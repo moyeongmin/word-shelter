@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>1.1.1% - MVP</title>
+</head>
+<body>
+    <div id="app-container">
+        
+        <div id="game-container"></div>
+        <div id="hud-container">
+            <button id="open-upgrade-btn" class="hud-btn" style="background: linear-gradient(135deg, #ff9900, #ff3300); border:none;">✨ 진화</button>
+            <button id="hamburger-btn" class="hamburger-btn">☰</button>
+        </div>
+
+        <div id="ui-container">
+            
+            <div id="system-menu-modal" class="hidden">
+                <div class="modal-header">
+                    <h2>⚙️ 시스템 메뉴</h2>
+                    <button id="close-system-btn" class="icon-close-btn">✕</button>
+                </div>
+                <div class="menu-btn-group">
+                    <button id="open-dict-btn" class="sys-menu-btn">📖 창조의 도감</button>
+                    <button class="sys-menu-btn">⚙️ 환경 설정</button>
+                </div>
+            </div>
+
+            <div id="upgrade-modal" class="hidden">
+                <div class="modal-header">
+                    <h2>✨ 연금술 진화</h2>
+                    <button id="close-upgrade-btn" class="icon-close-btn">✕</button>
+                </div>
+                <div class="upgrade-stats">
+                    보유 포인트: <span id="available-points" style="color:#ffcc00; font-size:1.5rem;">0</span> PT
+                </div>
+                <p style="color:#aaa; font-size:0.85rem; margin-bottom:20px;">새로운 지식(도감)을 발견할 때마다 1PT를 획득합니다.</p>
+                
+                <div class="upgrade-list">
+                    <div class="upg-row"><div class="upg-info"><span>👟 이동 속도</span><small>필요 1PT</small></div><div class="upg-controls"><button class="upg-btn minus" data-type="speed">-</button><span id="upg-lv-speed">Lv.0</span><button class="upg-btn plus" data-type="speed">+</button></div></div>
+                    <div class="upg-row"><div class="upg-info"><span>⏱️ 복제 속도 (기본 15초)</span><small>초당 -1초 (필요 1PT)</small></div><div class="upg-controls"><button class="upg-btn minus" data-type="time">-</button><span id="upg-lv-time">Lv.0</span><button class="upg-btn plus" data-type="time">+</button></div></div>
+                    <div class="upg-row"><div class="upg-info"><span>📦 복제 산출량</span><small>+1개 (필요 5PT)</small></div><div class="upg-controls"><button class="upg-btn minus" data-type="yield">-</button><span id="upg-lv-yield">Lv.0</span><button class="upg-btn plus" data-type="yield">+</button></div></div>
+                    <div class="upg-row special-upg" id="upg-slot2-container"><div class="upg-info"><span style="color:#ff3366">🧪 듀얼 복제기 개방</span><small id="upg-slot2-req">요구: 도감 30종 (필요 10PT)</small></div><div class="upg-controls"><button class="upg-btn minus" data-type="slot2">-</button><span id="upg-lv-slot2">잠김</span><button class="upg-btn plus" data-type="slot2">+</button></div></div>
+                </div>
+            </div>
+
+            <div id="dictionary-modal" class="hidden">
+                <div class="modal-header"><h2>📖 창조의 도감</h2><button id="close-dict-btn" class="icon-close-btn">✕</button></div>
+                <div id="dict-list-view"><div class="dict-stats"><span id="collection-count">발견한 재료: 0종</span></div><div id="collection-list" class="collection-list"></div></div>
+                <div id="dict-detail-view" class="hidden"><div class="detail-header"><button id="dict-back-btn" class="back-btn">◀ 목록으로</button><h3 id="dict-detail-title">이름</h3></div><div class="recipe-section"><span class="section-label">SYNTHESIS RECIPES</span><div id="dict-recipe-list" class="recipe-list"></div></div></div>
+            </div>
+
+            <div id="alchemy-desk-screen" class="hidden">
+                <div class="pouch-header">
+                    <h2>🧪 연금술 작업대</h2>
+                    <button id="close-desk-btn" class="icon-close-btn" style="background:#ff4757; color:white; width:auto; padding:0 15px; border-radius:8px;">작업 종료 ✕</button>
+                </div>
+                <p class="pouch-guide">물질을 조합하거나, 좌측 슬롯에 넣어 자동 복제하세요. (더블클릭 지원)</p>
+                
+                <div class="desk-layout">
+                    <div class="desk-left">
+                        <span class="section-label" style="text-align: center;">AUTO REPLICATORS</span>
+                        <div class="rep-slot-wrapper"><div id="rep-drop-0" class="replicator-tube empty" data-slot="0"><span>1번 슬롯<br>드롭</span></div><div class="rep-bar-bg"><div id="rep-bar-0" class="rep-bar-fill"></div></div><button id="remove-rep-0" class="hidden">1번 회수</button></div>
+                        <div class="rep-slot-wrapper" style="margin-top:20px;"><div id="rep-drop-1" class="replicator-tube locked" data-slot="1"><span>잠김<br>(진화 필요)</span></div><div class="rep-bar-bg"><div id="rep-bar-1" class="rep-bar-fill"></div></div><button id="remove-rep-1" class="hidden">2번 회수</button></div>
+                    </div>
+
+                    <!-- 🌟 우측 주머니 (비동기 로딩 락 추가) -->
+                    <div class="desk-right" style="position: relative;">
+                        <!-- 🚨 비동기 합성 시 클릭 방지용 보호막 -->
+                        <div id="alchemy-loading-lock" class="hidden">
+                            ✨ 연금술 진행 중... ✨
+                        </div>
+                        <div id="magic-pouch" class="full-pouch-container"></div>
+                    </div>
+                </div>
+            </div>
+            
+        </div>
+    </div>
+    <script type="module" src="/src/main.js"></script>
+</body>
+</html>
