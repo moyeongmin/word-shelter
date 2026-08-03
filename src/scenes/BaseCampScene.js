@@ -9,6 +9,11 @@ export default class BaseCampScene extends Phaser.Scene {
         this.isSynthesizing = false; 
     }
 
+    preload() {
+        this.load.image('bg_basecamp', 'assets/images/BaseCamp.png');
+        this.load.image('player_asset', 'assets/images/player.png'); 
+    }
+
     init(data) {
         if (data && data.spawnFrom) this.spawnFrom = data.spawnFrom; 
         
@@ -18,6 +23,7 @@ export default class BaseCampScene extends Phaser.Scene {
             this.registry.set('discoveredRecipes', {});
             this.registry.set('replicators', [{ item: null, lastTick: 0 }, { item: null, lastTick: 0 }]);
             this.registry.set('upgrades', { speed: 0, time: 0, yield: 0, slot2: false });
+            this.registry.set('discoveryOrder', []); 
             this.registry.set('isInitialized', true);
         }
 
@@ -26,75 +32,102 @@ export default class BaseCampScene extends Phaser.Scene {
         this.discoveredRecipes = this.registry.get('discoveredRecipes');
         this.replicators = this.registry.get('replicators');
         this.upgrades = this.registry.get('upgrades');
+        this.discoveryOrder = this.registry.get('discoveryOrder');
     }
 
-    addDiscoveredWord(word) { if (!this.discoveredWords.includes(word)) this.discoveredWords.push(word); }
+    addDiscoveredWord(word) { 
+        if (!this.discoveredWords.includes(word)) { 
+            this.discoveredWords.push(word); 
+            this.discoveryOrder.push(word); 
+        } 
+    }
+
     get availablePoints() { let spent = (this.upgrades.speed * 1) + (this.upgrades.time * 1) + (this.upgrades.yield * 5); if (this.upgrades.slot2) spent += 10; return this.discoveredWords.length - spent; }
-    get playerSpeed() { return 200 + (this.upgrades.speed * 15); }
+    get playerSpeed() { return 120 + (this.upgrades.speed * 9); } 
     get repTime() { return 15000 - (this.upgrades.time * 1000); } 
     get repYield() { return 1 + this.upgrades.yield; }
 
     create() {
-        if (!this.textures.exists('pixel')) { const g = this.make.graphics({x: 0, y: 0, add: false}); g.fillStyle(0xffffff, 1); g.fillRect(0, 0, 4, 4); g.generateTexture('pixel', 4, 4); }
-        this.add.rectangle(480, 300, 960, 600, 0x4a5a3a);
-        
-        // =================================================================
-        // 🌟 [엔티티 분리] 1. 작업대 물리 히트박스 (투명)
-        // 캐릭터의 충돌과 거리 계산을 담당. 에셋이 어떻게 변하든 물리 로직은 안전함.
-        // =================================================================
-        this.alchemyTableZone = this.add.rectangle(480, 250, 140, 80, 0x000000, 0); 
+        // [1] 배경 렌더링
+        const bg = this.add.image(0, 0, 'bg_basecamp').setOrigin(0, 0);
+
+        this.physics.world.setBounds(0, 0, bg.width, bg.height);
+        this.cameras.main.setBounds(0, 0, bg.width, bg.height);
+        this.cameras.main.setZoom(1.5); 
+
+        // [2] 상호작용 오브젝트 배치
+        this.campfire = this.add.circle(bg.width / 2, bg.height / 2 + 50, 30, 0xff4500, 0); 
+        this.physics.add.existing(this.campfire, true); 
+
+        this.alchemyTableZone = this.add.rectangle(bg.width / 2, bg.height / 2 - 50, 140, 80, 0x000000, 0); 
         this.physics.add.existing(this.alchemyTableZone, true); 
-
-        // =================================================================
-        // 🌟 [엔티티 분리] 2. 작업대 가시적 엔티티 (컨테이너)
-        // 나중에 에셋 추가 시, 아래의 도형들을 this.add.sprite(0, 0, 'asset_name') 으로 교체하면 됨.
-        // =================================================================
-        this.alchemyTableVisuals = this.add.container(480, 250);
-        
-        this.tableBase = this.add.rectangle(0, 0, 140, 80, 0x555555); // 기본 베이스
-        this.tableAddon1 = this.add.rectangle(-45, -20, 30, 40, 0xb8860b).setVisible(false); // 2단계 부품 (황동 기어 느낌)
-        this.tableAddon2 = this.add.circle(45, -20, 20, 0x8b5cf6).setVisible(false); // 3단계 부품 (네온 플라스크 느낌)
+        this.alchemyTableVisuals = this.add.container(bg.width / 2, bg.height / 2 - 50);
+        this.tableBase = this.add.rectangle(0, 0, 140, 80, 0x555555, 0); 
         this.tableText = this.add.text(0, 0, '🧪 작업대', { fontSize: '16px', fill: '#fff', fontStyle: 'bold' }).setOrigin(0.5);
+        this.alchemyTableVisuals.add([this.tableBase, this.tableText]);
 
-        this.alchemyTableVisuals.add([this.tableBase, this.tableAddon1, this.tableAddon2, this.tableText]);
+        this.pond = this.add.ellipse(bg.width / 2 + 180, bg.height - 150, 140, 90, 0x1ca3ec, 0); 
+        this.physics.add.existing(this.pond, true); 
 
-        this.repEmitter = this.add.particles(480, 250, 'pixel', { tint: [0xff3366, 0x8b5cf6], speed: 60, scale: { start: 1.5, end: 0 }, blendMode: 'ADD', lifespan: 800, frequency: 50, emitting: false });
+        // 포탈 구역 설정
+        this.northPortal = this.add.rectangle(bg.width / 2, 20, 200, 40, 0x00ff00, 0); 
+        this.physics.add.existing(this.northPortal, true);
 
-        this.pond = this.add.ellipse(300, 480, 140, 90, 0x1ca3ec); this.physics.add.existing(this.pond, true);
-        this.add.text(300, 480, '💧 연못', { fontSize: '14px', fill: '#fff', fontStyle: 'bold' }).setOrigin(0.5);
-        this.add.particles(300, 480, 'pixel', { tint: 0x87ceeb, speed: { min: 5, max: 20 }, angle: { min: 250, max: 290 }, scale: { start: 1, end: 0 }, lifespan: 2000, blendMode: 'ADD', frequency: 300, emitZone: { type: 'random', source: new Phaser.Geom.Ellipse(0, 0, 140, 90) } });
+        this.forestPortal = this.add.rectangle(bg.width - 20, bg.height / 2, 40, 200, 0x00ff00, 0); 
+        this.physics.add.existing(this.forestPortal, true);
 
-        this.campfire = this.add.circle(660, 480, 30, 0xff4500); this.physics.add.existing(this.campfire, true);
-        this.add.text(660, 440, '🔥 모닥불', { fontSize: '14px', fill: '#fff', fontStyle: 'bold' }).setOrigin(0.5);
-        this.add.particles(660, 480, 'pixel', { tint: [ 0xff4500, 0xff8c00, 0xffff00 ], speed: { min: 20, max: 60 }, angle: { min: 240, max: 300 }, scale: { start: 1.5, end: 0 }, lifespan: 1200, blendMode: 'ADD', frequency: 100 });
-
-        this.forestPortal = this.add.rectangle(920, 300, 80, 200, 0x213b22); this.physics.add.existing(this.forestPortal, true);
-        this.add.text(860, 300, '숲으로 ▶', { fontSize: '20px', fill: '#fff', fontStyle: 'bold' }).setOrigin(0.5);
-
-        this.desertPortal = this.add.rectangle(40, 300, 80, 200, 0xedc9af); this.physics.add.existing(this.desertPortal, true);
-        this.add.text(100, 300, '◀ 사막으로', { fontSize: '20px', fill: '#fff', fontStyle: 'bold' }).setOrigin(0.5);
-
-        let startX = 480, startY = 380; 
-        if (this.spawnFrom === 'Forest') { startX = 840; startY = 300; }
-        else if (this.spawnFrom === 'Desert') { startX = 120; startY = 300; }
+        // [3] 플레이어 생성 및 안전 스폰 위치 설정 (포탈 안쪽으로 깊게 밀어줌)
+        let startX = bg.width / 2, startY = bg.height / 2; 
+        if (this.spawnFrom === 'Camp2Cave') { // Forest에서 이름 변경
+            startX = bg.width - 80; 
+            startY = bg.height / 2; 
+        } else if (this.spawnFrom === 'NorthSide') { 
+            startX = bg.width / 2; 
+            startY = 80; 
+        }
         
-        this.player = this.add.rectangle(startX, startY, 32, 32, 0xFFFFFF); this.physics.add.existing(this.player);
+        this.player = this.physics.add.sprite(startX, startY, 'player_asset'); 
+        this.player.setScale(0.15); 
         
-        // 🌟 콜라이더 대상을 렌더링용 컨테이너가 아닌 물리 존(Zone)으로 변경!
         this.physics.add.collider(this.player, this.alchemyTableZone); 
         this.physics.add.collider(this.player, this.pond); 
         this.physics.add.collider(this.player, this.campfire);
 
+        this.cameras.main.startFollow(this.player);
+
+        // [4] 기타 세팅 및 파밍
         this.keys = this.input.keyboard.addKeys('W,A,S,D,F,ESC');
         this.materials = this.physics.add.group();
         this.time.addEvent({ delay: 5000, callback: () => this.spawnMaterialAround(this.pond.x, this.pond.y, 100, '물', '#1ca3ec', 5), loop: true });
         this.time.addEvent({ delay: 7000, callback: () => this.spawnMaterialAround(this.campfire.x, this.campfire.y, 80, '불', '#ff4500', 4), loop: true });
 
-        // DOM 바인딩 및 이벤트 처리
-        this.sysMenuModal = document.getElementById('system-menu-modal'); this.dictModal = document.getElementById('dictionary-modal');
-        this.upgradeModal = document.getElementById('upgrade-modal'); this.deskScreen = document.getElementById('alchemy-desk-screen');
+        // DOM 바인딩 및 포탈 팝업 이벤트 설정
+        this.sysMenuModal = document.getElementById('system-menu-modal'); 
+        this.dictModal = document.getElementById('dictionary-modal');
+        this.upgradeModal = document.getElementById('upgrade-modal'); 
+        this.deskScreen = document.getElementById('alchemy-desk-screen');
         this.pouchContainer = document.getElementById('magic-pouch');
         this.loadingLock = document.getElementById('alchemy-loading-lock'); 
+        
+        // 🌟 숲/북쪽 이동 확인 팝업 모달 바인딩
+        this.portalModal = document.getElementById('portal-confirm-modal');
+        this.portalModalDesc = document.getElementById('portal-modal-desc');
+        this.targetSceneName = null;
+        this.targetSpawnFrom = 'BaseCamp';
+
+        document.getElementById('portal-yes-btn').onclick = () => {
+            if (this.portalModal) this.portalModal.classList.add('hidden');
+            this.input.keyboard.enabled = true;
+            if (this.targetSceneName) {
+                this.scene.start(this.targetSceneName, { spawnFrom: this.targetSpawnFrom });
+            }
+        };
+
+        document.getElementById('portal-no-btn').onclick = () => {
+            if (this.portalModal) this.portalModal.classList.add('hidden');
+            this.input.keyboard.enabled = true;
+            this.targetSceneName = null;
+        };
 
         document.getElementById('open-upgrade-btn').onclick = () => this.openUpgradeUI();
         document.getElementById('close-upgrade-btn').onclick = () => { this.upgradeModal.classList.add('hidden'); this.input.keyboard.enabled = true; };
@@ -113,45 +146,26 @@ export default class BaseCampScene extends Phaser.Scene {
             dropZone.addEventListener('drop', (e) => { e.preventDefault(); dropZone.classList.remove('drag-over'); if (dropZone.classList.contains('locked')) return; this.insertToReplicator(e.dataTransfer.getData('text/plain'), i); });
         }
 
-        // 🌟 씬 로드 시 현재 업그레이드 상태에 맞춰 작업대 외형 업데이트!
+        document.getElementById('dict-search').addEventListener('input', () => this.showDictList());
+        document.getElementById('dict-sort').addEventListener('change', () => this.showDictList());
+        document.getElementById('pouch-search').addEventListener('input', () => this.renderAlchemyPouch());
+        document.getElementById('pouch-sort').addEventListener('change', () => this.renderAlchemyPouch());
+
         this.updateWorkbenchVisuals();
     }
 
-    // =================================================================
-    // 🌟 [가시적 성장 로직] 작업대 외형 업데이트 함수
-    // =================================================================
     updateWorkbenchVisuals() {
-        // 관련된 업그레이드(복제 속도, 산출량, 2번 슬롯)의 합을 계산하여 티어 분류
         const totalUpg = this.upgrades.time + this.upgrades.yield + (this.upgrades.slot2 ? 5 : 0);
-
-        // 💡 [에셋 교체 가이드]
-        // 나중에 이미지를 구하면 이 안에서 this.tableBase.setTexture('asset_level_3') 처럼 호출하면 돼!
-        if (totalUpg >= 10) {
-            // 3단계: 마스터 작업대
-            this.tableBase.setFillStyle(0x333344);
-            this.tableAddon1.setVisible(true);
-            this.tableAddon2.setVisible(true);
-            this.tableText.setText('🔮 마스터 작업대');
-        } else if (totalUpg >= 4) {
-            // 2단계: 기계식 작업대
-            this.tableBase.setFillStyle(0x444433);
-            this.tableAddon1.setVisible(true);
-            this.tableAddon2.setVisible(false);
-            this.tableText.setText('⚙️ 기계식 작업대');
-        } else {
-            // 1단계: 기본 작업대
-            this.tableBase.setFillStyle(0x555555);
-            this.tableAddon1.setVisible(false);
-            this.tableAddon2.setVisible(false);
-            this.tableText.setText('🧪 작업대');
-        }
+        if (totalUpg >= 10) { this.tableText.setText('🔮 마스터 작업대'); } 
+        else if (totalUpg >= 4) { this.tableText.setText('⚙️ 기계식 작업대'); } 
+        else { this.tableText.setText('🧪 작업대'); }
     }
 
     updateReplicatorsTick() {
-        const now = Date.now(); let uiNeedsUpdate = false; let isAnyRunning = false;
+        const now = Date.now(); let uiNeedsUpdate = false; 
         this.replicators.forEach((rep, i) => {
             if (rep.item) {
-                isAnyRunning = true; const elapsed = now - rep.lastTick;
+                const elapsed = now - rep.lastTick;
                 if (elapsed >= this.repTime) {
                     const ticks = Math.floor(elapsed / this.repTime);
                     this.wordInventory[rep.item] = (this.wordInventory[rep.item] || 0) + (this.repYield * ticks);
@@ -164,16 +178,16 @@ export default class BaseCampScene extends Phaser.Scene {
                 if (!this.deskScreen.classList.contains('hidden')) document.getElementById(`rep-bar-${i}`).style.width = `0%`;
             }
         });
-        if (this.repEmitter) this.repEmitter.emitting = isAnyRunning;
         if (uiNeedsUpdate && !this.deskScreen.classList.contains('hidden')) this.renderAlchemyPouch();
     }
 
     spawnMaterialAround(x, y, radius, name, colorHex, maxLimit) {
         if (this.materials.getChildren().filter(m => m.name === name).length >= maxLimit) return;
-        let valid = false, spawnX, spawnY; const obstacles = [this.pond, this.campfire, this.alchemyTableZone, this.forestPortal, this.desertPortal];
+        let valid = false, spawnX, spawnY; const obstacles = [this.pond, this.campfire, this.alchemyTableZone];
         for(let i=0; i<30; i++) {
             const angle = Math.random() * Math.PI * 2; const r = 40 + Math.random() * (radius - 40);
-            spawnX = Math.max(30, Math.min(930, x + Math.cos(angle) * r)); spawnY = Math.max(30, Math.min(570, y + Math.sin(angle) * r));
+            spawnX = Math.max(30, Math.min(this.physics.world.bounds.width - 30, x + Math.cos(angle) * r)); 
+            spawnY = Math.max(30, Math.min(this.physics.world.bounds.height - 30, y + Math.sin(angle) * r));
             valid = true; for(let o of obstacles) { if (Phaser.Math.Distance.Between(spawnX, spawnY, o.x, o.y) < Math.max(o.width, o.height)/2 + 20) { valid = false; break; } }
             if(valid) break;
         }
@@ -183,12 +197,14 @@ export default class BaseCampScene extends Phaser.Scene {
         this.physics.add.existing(mat); this.materials.add(mat);
     }
 
-    createPickupBurst(x, y, colorHex) { const colorVal = Phaser.Display.Color.HexStringToColor(colorHex).color; this.add.particles(x, y, 'pixel', { tint: colorVal, speed: { min: 50, max: 150 }, scale: { start: 1.2, end: 0 }, lifespan: 500, blendMode: 'ADD', duration: 100 }); }
     showFloatingText(x, y, message, colorHex) { const t = this.add.text(x, y - 20, message, { fontSize: '18px', fill: colorHex, fontStyle: 'bold' }).setOrigin(0.5); this.tweens.add({ targets: t, y: y - 60, alpha: 0, duration: 1000, onComplete: () => t.destroy() }); }
 
     update() {
         this.updateReplicatorsTick();
-        if (!this.deskScreen.classList.contains('hidden') || !this.sysMenuModal.classList.contains('hidden') || !this.dictModal.classList.contains('hidden') || !this.upgradeModal.classList.contains('hidden')) { this.player.body.setVelocity(0, 0); return; }
+        if (!this.deskScreen.classList.contains('hidden') || !this.sysMenuModal.classList.contains('hidden') || !this.dictModal.classList.contains('hidden') || !this.upgradeModal.classList.contains('hidden') || (this.portalModal && !this.portalModal.classList.contains('hidden'))) { 
+            this.player.body.setVelocity(0, 0); 
+            return; 
+        }
         
         let vx = 0, vy = 0;
         if (this.keys.A.isDown) vx = -this.playerSpeed; else if (this.keys.D.isDown) vx = this.playerSpeed;
@@ -196,25 +212,37 @@ export default class BaseCampScene extends Phaser.Scene {
         this.player.body.setVelocity(vx, vy);
 
         if (Phaser.Input.Keyboard.JustDown(this.keys.ESC)) this.toggleSystemMenu();
+        
         if (Phaser.Input.Keyboard.JustDown(this.keys.F)) {
+            // 재료 파밍
             this.materials.getChildren().forEach((mat) => {
                 if (mat.active && Phaser.Math.Distance.BetweenPoints(this.player, mat) < 50) {
                     this.wordInventory[mat.name] = (this.wordInventory[mat.name] || 0) + 1;
                     this.addDiscoveredWord(mat.name);
-                    this.createPickupBurst(mat.x, mat.y, mat.colorHex);
                     this.showFloatingText(mat.x, mat.y, `+ ${mat.name}`, mat.colorHex);
                     mat.destroy();
                 }
             });
 
-            // 🌟 거리 계산도 Zone(투명 히트박스)를 기준으로 하도록 변경!
-            if (Phaser.Math.Distance.BetweenPoints(this.player, this.alchemyTableZone) < 90) this.openAlchemyDesk();
-            
-            if (Phaser.Math.Distance.BetweenPoints(this.player, this.forestPortal) < 100) {
-                this.scene.start('ForestScene', { spawnFrom: 'BaseCamp' });
+            // 작업대 상호작용
+            if (Phaser.Math.Distance.BetweenPoints(this.player, this.alchemyTableZone) < 90) {
+                this.openAlchemyDesk();
             }
-            if (Phaser.Math.Distance.BetweenPoints(this.player, this.desertPortal) < 100) {
-                this.scene.start('DesertScene', { spawnFrom: 'BaseCamp' });
+
+            // 🌟 북쪽 포탈 상호작용 (F키 입력 시 팝업 띄우기)
+            if (Phaser.Math.Distance.BetweenPoints(this.player, this.northPortal) < 80) {
+                this.targetSceneName = 'NorthSideScene';
+                if (this.portalModalDesc) this.portalModalDesc.innerText = "북쪽 지역으로 이동하시겠습니까?";
+                this.input.keyboard.enabled = false;
+                if (this.portalModal) this.portalModal.classList.remove('hidden');
+            }
+
+            // 🌟 숲 포탈 상호작용 (F키 입력 시 팝업 띄우기)
+            if (Phaser.Math.Distance.BetweenPoints(this.player, this.forestPortal) < 80) {
+                this.targetSceneName = 'Camp2CaveScene'; // ForestScene에서 이름 변경
+                if (this.portalModalDesc) this.portalModalDesc.innerText = "이동하시겠습니까?";
+                this.input.keyboard.enabled = false;
+                if (this.portalModal) this.portalModal.classList.remove('hidden');
             }
         }
     }
@@ -235,17 +263,88 @@ export default class BaseCampScene extends Phaser.Scene {
             if (type === 'yield' && this.upgrades.yield > 0) this.upgrades.yield--; 
             if (type === 'slot2' && this.upgrades.slot2) { if (this.replicators[1].item) { alert("2번 슬롯이 가동 중일 때는 초기화할 수 없습니다!"); return; } this.upgrades.slot2 = false; } 
         } 
-        
         this.renderUpgradeUI(); 
-        // 🌟 업그레이드를 찍거나 환불할 때마다 작업대 외형 갱신!
         this.updateWorkbenchVisuals();
     }
 
-    showDictList() { this.input.keyboard.enabled = false; this.dictModal.classList.remove('hidden'); document.getElementById('dict-detail-view').classList.add('hidden'); document.getElementById('dict-list-view').classList.remove('hidden'); document.getElementById('collection-count').innerText = `발견한 재료: ${this.discoveredWords.length}종`; const listContainer = document.getElementById('collection-list'); listContainer.innerHTML = ''; if (this.discoveredWords.length === 0) { listContainer.innerHTML = '<div style="color:#888;">아직 지식이 없습니다.</div>'; return; } this.discoveredWords.forEach(word => { const item = document.createElement('div'); item.className = 'collection-item'; item.innerHTML = `${word} <span style="float:right; color:#888;">▶</span>`; item.onclick = () => this.showDictDetail(word); listContainer.appendChild(item); }); }
+    showDictList() { 
+        this.input.keyboard.enabled = false; 
+        this.dictModal.classList.remove('hidden'); 
+        document.getElementById('dict-detail-view').classList.add('hidden'); 
+        document.getElementById('dict-list-view').classList.remove('hidden'); 
+        document.getElementById('collection-count').innerText = `발견한 재료: ${this.discoveredWords.length}종`; 
+        const listContainer = document.getElementById('collection-list'); 
+        listContainer.innerHTML = ''; 
+
+        const searchTerm = document.getElementById('dict-search').value.trim().toLowerCase();
+        const sortType = document.getElementById('dict-sort').value;
+
+        let displayList = [...this.discoveryOrder]; 
+
+        if (searchTerm) { displayList = displayList.filter(word => word.toLowerCase().includes(searchTerm)); }
+        if (sortType === 'recent') { displayList.reverse(); } else if (sortType === 'alpha') { displayList.sort((a, b) => a.localeCompare(b, 'ko-KR')); } 
+
+        if (displayList.length === 0) { listContainer.innerHTML = '<div style="color:#888; text-align:center; padding:20px;">검색 결과가 없습니다.</div>'; return; } 
+
+        displayList.forEach(word => { 
+            const item = document.createElement('div'); 
+            item.className = 'collection-item'; 
+            item.innerHTML = `${word} <span style="float:right; color:#888;">▶</span>`; 
+            item.onclick = () => this.showDictDetail(word); 
+            listContainer.appendChild(item); 
+        }); 
+    }
+
     showDictDetail(word) { document.getElementById('dict-list-view').classList.add('hidden'); document.getElementById('dict-detail-view').classList.remove('hidden'); document.getElementById('dict-detail-title').innerText = word; const recipeList = document.getElementById('dict-recipe-list'); recipeList.innerHTML = ''; const recipes = this.discoveredRecipes[word] || []; if (recipes.length === 0) { recipeList.innerHTML = '<span style="color:#aaa;">자연에서 얻거나 아직 조합법을 모릅니다.</span>'; } else { recipes.forEach(recipe => { const row = document.createElement('div'); row.className = 'recipe-row'; const m1 = document.createElement('button'); m1.className = 'recipe-mat-btn'; m1.innerText = recipe[0]; m1.onclick = () => this.showDictDetail(recipe[0]); const plus = document.createElement('span'); plus.innerText = '+'; plus.style.fontWeight = 'bold'; const m2 = document.createElement('button'); m2.className = 'recipe-mat-btn'; m2.innerText = recipe[1]; m2.onclick = () => this.showDictDetail(recipe[1]); row.appendChild(m1); row.appendChild(plus); row.appendChild(m2); recipeList.appendChild(row); }); } }
+    
     openAlchemyDesk() { this.input.keyboard.enabled = false; this.deskScreen.classList.remove('hidden'); this.syncReplicatorUI(); this.renderAlchemyPouch(); }
     syncReplicatorUI() { for(let i=0; i<2; i++) { const dropZone = document.getElementById(`rep-drop-${i}`); const removeBtn = document.getElementById(`remove-rep-${i}`); if(i === 1 && !this.upgrades.slot2) { dropZone.className = 'replicator-tube locked'; dropZone.innerHTML = `<span>잠김<br>(진화 필요)</span>`; removeBtn.classList.add('hidden'); continue; } if (this.replicators[i].item) { dropZone.className = 'replicator-tube active'; dropZone.innerHTML = `<span>${this.replicators[i].item}</span>`; removeBtn.classList.remove('hidden'); } else { dropZone.className = 'replicator-tube empty'; dropZone.innerHTML = `<span>${i+1}번 슬롯<br>드롭</span>`; removeBtn.classList.add('hidden'); } } }
-    renderAlchemyPouch() { this.pouchContainer.innerHTML = ''; Object.entries(this.wordInventory).forEach(([word, count]) => { if (count <= 0) return; const bubble = document.createElement('div'); bubble.className = 'word-bubble'; bubble.draggable = true; bubble.innerHTML = `${word} <span class="item-count">x${count}</span>`; bubble.addEventListener('dragstart', (e) => e.dataTransfer.setData('text/plain', word)); bubble.addEventListener('dragover', (e) => { e.preventDefault(); bubble.classList.add('drag-over'); }); bubble.addEventListener('dragleave', () => bubble.classList.remove('drag-over')); bubble.addEventListener('dblclick', () => { if (this.wordInventory[word] > 0) { let targetSlot = -1; if(!this.replicators[0].item) targetSlot = 0; else if(this.upgrades.slot2 && !this.replicators[1].item) targetSlot = 1; if(targetSlot !== -1) this.insertToReplicator(word, targetSlot); } }); bubble.addEventListener('drop', async (e) => { e.preventDefault(); bubble.classList.remove('drag-over'); if (this.isSynthesizing) return; const draggedWord = e.dataTransfer.getData('text/plain'); if (draggedWord === word && this.wordInventory[word] < 2) return; this.isSynthesizing = true; this.loadingLock.classList.remove('hidden'); try { this.wordInventory[draggedWord] -= 1; this.wordInventory[word] -= 1; if (this.wordInventory[draggedWord] <= 0) delete this.wordInventory[draggedWord]; if (this.wordInventory[word] <= 0) delete this.wordInventory[word]; this.renderAlchemyPouch(); const resultWord = await combineWords(draggedWord, word); this.wordInventory[resultWord] = (this.wordInventory[resultWord] || 0) + 1; this.addDiscoveredWord(resultWord); if (!this.discoveredRecipes[resultWord]) this.discoveredRecipes[resultWord] = []; const sortedRecipe = [draggedWord, word].sort(); const exists = this.discoveredRecipes[resultWord].some(r => r[0] === sortedRecipe[0] && r[1] === sortedRecipe[1]); if (!exists) this.discoveredRecipes[resultWord].push(sortedRecipe); } finally { this.isSynthesizing = false; this.loadingLock.classList.add('hidden'); this.renderAlchemyPouch(); } }); this.pouchContainer.appendChild(bubble); }); }
+    
+    renderAlchemyPouch() { 
+        this.pouchContainer.innerHTML = ''; 
+        
+        const searchTerm = document.getElementById('pouch-search').value.trim().toLowerCase();
+        const sortType = document.getElementById('pouch-sort').value;
+
+        let availableItems = Object.entries(this.wordInventory).filter(([word, count]) => count > 0);
+
+        if (searchTerm) { availableItems = availableItems.filter(([word]) => word.toLowerCase().includes(searchTerm)); }
+        if (sortType === 'alpha') { availableItems.sort((a, b) => a[0].localeCompare(b[0], 'ko-KR')); } else if (sortType === 'recent') { availableItems.sort((a, b) => this.discoveryOrder.indexOf(b[0]) - this.discoveryOrder.indexOf(a[0])); }
+
+        availableItems.forEach(([word, count]) => { 
+            const bubble = document.createElement('div'); bubble.className = 'word-bubble'; bubble.draggable = true; bubble.innerHTML = `${word} <span class="item-count">x${count}</span>`; 
+            bubble.addEventListener('dragstart', (e) => e.dataTransfer.setData('text/plain', word)); 
+            bubble.addEventListener('dragover', (e) => { e.preventDefault(); bubble.classList.add('drag-over'); }); 
+            bubble.addEventListener('dragleave', () => bubble.classList.remove('drag-over')); 
+            bubble.addEventListener('dblclick', () => { if (this.wordInventory[word] > 0) { let targetSlot = -1; if(!this.replicators[0].item) targetSlot = 0; else if(this.upgrades.slot2 && !this.replicators[1].item) targetSlot = 1; if(targetSlot !== -1) this.insertToReplicator(word, targetSlot); } }); 
+            bubble.addEventListener('drop', async (e) => { 
+                e.preventDefault(); bubble.classList.remove('drag-over'); 
+                if (this.isSynthesizing) return; 
+                const draggedWord = e.dataTransfer.getData('text/plain'); 
+                if (draggedWord === word && this.wordInventory[word] < 2) return; 
+                this.isSynthesizing = true; this.loadingLock.classList.remove('hidden'); 
+                try { 
+                    this.wordInventory[draggedWord] -= 1; this.wordInventory[word] -= 1; 
+                    if (this.wordInventory[draggedWord] <= 0) delete this.wordInventory[draggedWord]; 
+                    if (this.wordInventory[word] <= 0) delete this.wordInventory[word]; 
+                    this.renderAlchemyPouch(); 
+                    
+                    const resultWord = await combineWords(draggedWord, word); 
+                    
+                    this.wordInventory[resultWord] = (this.wordInventory[resultWord] || 0) + 1; 
+                    this.addDiscoveredWord(resultWord); 
+                    if (!this.discoveredRecipes[resultWord]) this.discoveredRecipes[resultWord] = []; 
+                    const sortedRecipe = [draggedWord, word].sort(); 
+                    const exists = this.discoveredRecipes[resultWord].some(r => r[0] === sortedRecipe[0] && r[1] === sortedRecipe[1]); 
+                    if (!exists) this.discoveredRecipes[resultWord].push(sortedRecipe); 
+                } finally { 
+                    this.isSynthesizing = false; this.loadingLock.classList.add('hidden'); this.renderAlchemyPouch(); 
+                } 
+            }); 
+            this.pouchContainer.appendChild(bubble); 
+        }); 
+    }
+
     insertToReplicator(item, slotIdx) { if (this.replicators[slotIdx].item === item) return; if (this.replicators[slotIdx].item) { this.wordInventory[this.replicators[slotIdx].item] = (this.wordInventory[this.replicators[slotIdx].item] || 0) + 1; } this.wordInventory[item] -= 1; if (this.wordInventory[item] === 0) delete this.wordInventory[item]; this.replicators[slotIdx] = { item: item, lastTick: Date.now() }; this.syncReplicatorUI(); this.renderAlchemyPouch(); }
     removeFromReplicator(slotIdx) { if (!this.replicators[slotIdx].item) return; this.wordInventory[this.replicators[slotIdx].item] = (this.wordInventory[this.replicators[slotIdx].item] || 0) + 1; this.replicators[slotIdx] = { item: null, lastTick: 0 }; this.syncReplicatorUI(); this.renderAlchemyPouch(); }
 }

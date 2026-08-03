@@ -1,25 +1,26 @@
 import Phaser from 'phaser';
+import StartScene from './scenes/StartScene.js';
 import BaseCampScene from './scenes/BaseCampScene.js';
 import ForestScene from './scenes/ForestScene.js';
 import DesertScene from './scenes/DesertScene.js';
+import CaveScene from './scenes/CaveScene.js';
+import Camp2CaveScene from './scenes/Camp2CaveScene.js';
 
 import './ui/style.css';
 
+
 const config = {
     type: Phaser.AUTO,
+    parent: 'game-container',
     width: 960,
     height: 600,
-    parent: 'game-container',
     pixelArt: true,
-    physics: {
-        default: 'arcade',
-        arcade: {
-            gravity: { y: 0 },
-            debug: false
-        }
+    roundPixels: true,
+    physics: { 
+        default: 'arcade', 
+        arcade: { debug: false } 
     },
-    // BaseCampScene이 배열의 첫 번째이므로 게임 시작 시 가장 먼저 실행됨
-    scene: [BaseCampScene, ForestScene, DesertScene] 
+    scene: [StartScene, BaseCampScene, ForestScene, DesertScene, CaveScene, Camp2CaveScene]
 };
 
 const game = new Phaser.Game(config);
