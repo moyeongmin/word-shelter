@@ -18,7 +18,7 @@ const config = {
     roundPixels: true,
     physics: { 
         default: 'arcade', 
-        arcade: { debug: false } 
+        arcade: { debug: true } 
     },
     scene: [StartScene, BaseCampScene, ForestScene, DesertScene, CaveScene, Camp2CaveScene]
 };
