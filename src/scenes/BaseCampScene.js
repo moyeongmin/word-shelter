@@ -367,7 +367,7 @@ export default class BaseCampScene extends Phaser.Scene {
 
             // 북쪽 포탈
             if (Phaser.Math.Distance.BetweenPoints(this.player, this.northPortal) < 80) {
-                this.targetSceneName = 'NorthSideScene';
+                this.targetSceneName = 'NorthForestScene';
                 if (this.portalModalDesc) this.portalModalDesc.innerText = "북쪽 지역으로 이동하시겠습니까?";
                 this.input.keyboard.resetKeys();
                 this.input.keyboard.enabled = false;
