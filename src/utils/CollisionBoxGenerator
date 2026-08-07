@@ -1,0 +1,79 @@
+export default function collisionBoxGenerator(scene, mapWidth, mapHeight, obstaclesGroup) {
+    scene.devToolActive = true; // true일 때 드래그로 박스 생성 가능
+    scene.boxStart = null;
+    scene.devGraphics = scene.add.graphics().setDepth(9999);
+
+    // 상단 안내 텍스트
+    scene.add.text(16, 16, '🛠️ 데브툴 활성화: 마우스 드래그로 충돌박스 생성 (콘솔 및 화면에 코드 출력)', {
+        fontSize: '13px', fill: '#00ff00', backgroundColor: '#000000', padding: { x: 6, y: 4 }
+    }).setScrollFactor(0).setDepth(9999);
+
+    scene.input.on('pointerdown', (pointer) => {
+        if (!scene.devToolActive) return;
+        scene.boxStart = { x: pointer.worldX, y: pointer.worldY };
+    });
+
+    scene.input.on('pointermove', (pointer) => {
+        if (!scene.devToolActive || !scene.boxStart) return;
+        
+        scene.devGraphics.clear();
+        scene.devGraphics.lineStyle(2, 0xff0000, 1);
+        scene.devGraphics.fillStyle(0xff0000, 0.3);
+
+        const currentX = pointer.worldX;
+        const currentY = pointer.worldY;
+
+        const x = Math.min(scene.boxStart.x, currentX);
+        const y = Math.min(scene.boxStart.y, currentY);
+        const w_box = Math.abs(currentX - scene.boxStart.x);
+        const h_box = Math.abs(currentY - scene.boxStart.y);
+
+        scene.devGraphics.fillRect(x, y, w_box, h_box);
+        scene.devGraphics.strokeRect(x, y, w_box, h_box);
+    });
+
+    scene.input.on('pointerup', (pointer) => {
+        if (!scene.devToolActive || !scene.boxStart) return;
+
+        const currentX = pointer.worldX;
+        const currentY = pointer.worldY;
+
+        const x = Math.min(scene.boxStart.x, currentX);
+        const y = Math.min(scene.boxStart.y, currentY);
+        const w_box = Math.abs(currentX - scene.boxStart.x);
+        const h_box = Math.abs(currentY - scene.boxStart.y);
+
+        if (w_box > 5 && h_box > 5) {
+            const centerX = x + w_box / 2;
+            const centerY = y + h_box / 2;
+
+            const fx = (centerX / mapWidth).toFixed(3);
+            const fy = (centerY / mapHeight).toFixed(3);
+            const fw = (w_box / mapWidth).toFixed(3);
+            const fh = (h_box / mapHeight).toFixed(3);
+
+            const codeSnippet = `addBox(w * ${fx}, h * ${fy}, w * ${fw}, h * ${fh});`;
+            
+            console.log('%c [생성된 충돌 코드] ', 'background: #222; color: #bada55; font-size: 14px; font-weight: bold;', codeSnippet);
+            
+            const popup = scene.add.text(centerX, centerY, codeSnippet, {
+                fontSize: '12px', fill: '#ffff00', backgroundColor: '#000000', padding: { x: 4, y: 2 }
+            }).setOrigin(0.5).setDepth(10000);
+
+            scene.tweens.add({
+                targets: popup,
+                y: centerY - 50,
+                alpha: 0,
+                duration: 4000,
+                onComplete: () => popup.destroy()
+            });
+
+            const box = scene.add.rectangle(centerX, centerY, w_box, h_box, 0x0000ff, 0.4);
+            scene.physics.add.existing(box, true);
+            obstaclesGroup.add(box);
+        }
+
+        scene.boxStart = null;
+        scene.devGraphics.clear();
+    });
+}
