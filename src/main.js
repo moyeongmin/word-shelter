@@ -18,7 +18,11 @@ const config = {
     roundPixels: true,
     physics: { 
         default: 'arcade', 
+<<<<<<< Updated upstream
         arcade: { debug: false } 
+=======
+        arcade: { debug: true} 
+>>>>>>> Stashed changes
     },
     scene: [StartScene, BaseCampScene, ForestScene, DesertScene, CaveScene, Camp2CaveScene]
 };
