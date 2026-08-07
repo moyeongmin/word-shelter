@@ -23,9 +23,6 @@ const config = {
             debug: false,
         }
     },
-    // BaseCampScene이 배열의 첫 번째이므로 게임 시작 시 가장 먼저 실행됨
-        arcade: { debug: true } 
-    },
     scene: [StartScene, BaseCampScene, ForestScene, NorthForestScene, CaveScene, Camp2CaveScene]
 };
 
