@@ -14,6 +14,14 @@
         </div>
 
         <div id="ui-container">
+
+            <div id="start-screen">
+                <div class="title-container">
+                    <h1 class="main-title">1.1.1%</h1>
+                    <p class="sub-title">세상에 단 하나뿐인 당신의 안식처</p>
+                </div>
+                <button id="game-start-btn" class="start-btn">세계의 조각 모으기</button>
+            </div>
             
             <div id="system-menu-modal" class="hidden">
                 <div class="modal-header">
@@ -45,9 +53,31 @@
             </div>
 
             <div id="dictionary-modal" class="hidden">
-                <div class="modal-header"><h2>📖 창조의 도감</h2><button id="close-dict-btn" class="icon-close-btn">✕</button></div>
-                <div id="dict-list-view"><div class="dict-stats"><span id="collection-count">발견한 재료: 0종</span></div><div id="collection-list" class="collection-list"></div></div>
-                <div id="dict-detail-view" class="hidden"><div class="detail-header"><button id="dict-back-btn" class="back-btn">◀ 목록으로</button><h3 id="dict-detail-title">이름</h3></div><div class="recipe-section"><span class="section-label">SYNTHESIS RECIPES</span><div id="dict-recipe-list" class="recipe-list"></div></div></div>
+                <div class="modal-header">
+                    <h2>📖 창조의 도감</h2>
+                    <button id="close-dict-btn" class="icon-close-btn">✕</button>
+                </div>
+                <div id="dict-list-view">
+                    <div class="dict-stats"><span id="collection-count">발견한 재료: 0종</span></div>
+                    
+                    <div class="filter-controls">
+                        <input type="text" id="dict-search" placeholder="재료 검색..." class="search-input">
+                        <select id="dict-sort" class="sort-select">
+                            <option value="recent">얻은 순 (최신)</option>
+                            <option value="oldest">얻은 순 (과거)</option>
+                            <option value="alpha">가나다 순</option>
+                        </select>
+                        <select id="dict-attr-placeholder" class="sort-select disabled" disabled title="LLM 속성 연동 시 해금됩니다">
+                            <option>속성별 (준비 중)</option>
+                        </select>
+                    </div>
+
+                    <div id="collection-list" class="collection-list"></div>
+                </div>
+                <div id="dict-detail-view" class="hidden">
+                    <div class="detail-header"><button id="dict-back-btn" class="back-btn">◀ 목록으로</button><h3 id="dict-detail-title">이름</h3></div>
+                    <div class="recipe-section"><span class="section-label">SYNTHESIS RECIPES</span><div id="dict-recipe-list" class="recipe-list"></div></div>
+                </div>
             </div>
 
             <div id="alchemy-desk-screen" class="hidden">
@@ -64,16 +94,33 @@
                         <div class="rep-slot-wrapper" style="margin-top:20px;"><div id="rep-drop-1" class="replicator-tube locked" data-slot="1"><span>잠김<br>(진화 필요)</span></div><div class="rep-bar-bg"><div id="rep-bar-1" class="rep-bar-fill"></div></div><button id="remove-rep-1" class="hidden">2번 회수</button></div>
                     </div>
 
-                    <!-- 🌟 우측 주머니 (비동기 로딩 락 추가) -->
-                    <div class="desk-right" style="position: relative;">
-                        <!-- 🚨 비동기 합성 시 클릭 방지용 보호막 -->
-                        <div id="alchemy-loading-lock" class="hidden">
-                            ✨ 연금술 진행 중... ✨
+                    <div class="desk-right" style="position: relative; display: flex; flex-direction: column;">
+                        <div id="alchemy-loading-lock" class="hidden">✨ 연금술 진행 중... ✨</div>
+                        
+                        <div class="filter-controls pouch-filters" style="margin-bottom: 15px;">
+                            <input type="text" id="pouch-search" placeholder="보유 단어 검색..." class="search-input">
+                            <select id="pouch-sort" class="sort-select">
+                                <option value="recent">최근 획득순</option>
+                                <option value="alpha">가나다 순</option>
+                            </select>
+                            <button class="sort-select disabled" disabled title="LLM 속성 분류 (준비 중)">✨ 속성 필터</button>
                         </div>
+
                         <div id="magic-pouch" class="full-pouch-container"></div>
                     </div>
                 </div>
             </div>
+
+            <div id="portal-confirm-modal" class="hidden">
+                <div class="section-box" style="text-align: center; width: 300px; background: rgba(20,20,20,0.95);">
+                  <h3 style="margin-top: 0; color: #646cff;">🌲 숲 탐험</h3>
+                  <p id="portal-modal-desc">숲으로 이동하시겠습니까?</p>
+                  <div style="display: flex; justify-content: space-around; margin-top: 20px;">
+                    <button id="portal-yes-btn" class="material-btn" style="background: #4CAF50; width: 100px;">예</button>
+                    <button id="portal-no-btn" class="material-btn" style="background: #d9534f; width: 100px;">아니오</button>
+                  </div>
+                </div>
+              </div>
             
         </div>
     </div>
