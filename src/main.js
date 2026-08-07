@@ -17,12 +17,8 @@ const config = {
     pixelArt: true,
     roundPixels: true,
     physics: { 
-        default: 'arcade', 
-<<<<<<< Updated upstream
-        arcade: { debug: false } 
-=======
-        arcade: { debug: true} 
->>>>>>> Stashed changes
+        default: 'arcade',
+        arcade: { debug: true } 
     },
     scene: [StartScene, BaseCampScene, ForestScene, DesertScene, CaveScene, Camp2CaveScene]
 };
