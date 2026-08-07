@@ -6,6 +6,11 @@ export default class ForestScene extends Phaser.Scene {
         this.spawnFrom = 'BaseCamp';
     }
 
+    preload() {
+        this.load.image('bg_forest', 'assets/images/Forest_BG.png');
+        this.load.image('player_asset', 'assets/images/player.png');
+    }
+
     init(data) {
         if (data && data.spawnFrom) this.spawnFrom = data.spawnFrom;
         this.wordInventory = this.registry.get('wordInventory');
@@ -15,107 +20,105 @@ export default class ForestScene extends Phaser.Scene {
         this.upgrades = this.registry.get('upgrades');
     }
 
-    addDiscoveredWord(word) { if (!this.discoveredWords.includes(word)) this.discoveredWords.push(word); }
-    get playerSpeed() { return 200 + (this.upgrades.speed * 15); }
+    addDiscoveredWord(word) { 
+        if (!this.discoveredWords.includes(word)) this.discoveredWords.push(word); 
+    }
+
+    get playerSpeed() { return 120 + (this.upgrades.speed * 9); }
     get repTime() { return 15000 - (this.upgrades.time * 1000); }
     get repYield() { return 1 + this.upgrades.yield; }
 
     create() {
-        if (!this.textures.exists('pixel')) { const g = this.make.graphics({x: 0, y: 0, add: false}); g.fillStyle(0xffffff, 1); g.fillRect(0, 0, 4, 4); g.generateTexture('pixel', 4, 4); }
-        this.physics.world.setBounds(0, 0, 1600, 1200); this.cameras.main.setBounds(0, 0, 1600, 1200);
-        this.add.rectangle(800, 600, 1600, 1200, 0x213b22); 
+        if (!this.textures.exists('pixel')) { 
+            const g = this.make.graphics({x: 0, y: 0, add: false}); 
+            g.fillStyle(0xffffff, 1); 
+            g.fillRect(0, 0, 4, 4); 
+            g.generateTexture('pixel', 4, 4); 
+        }
 
-        this.trees = this.physics.add.staticGroup(); this.treePositions = []; 
-        this.createForestEnvironment();
+        // [1] 배경 이미지 렌더링
+        const bg = this.add.image(0, 0, 'bg_forest').setOrigin(0, 0);
 
-        // 🌟 파밍 구역 (흙 존)
-        this.add.ellipse(800, 950, 300, 200, 0x3e2723, 0.5); 
-        this.add.particles(800, 950, 'pixel', { tint: 0x5c4033, speed: { min: 10, max: 30 }, angle: { min: 250, max: 290 }, scale: { start: 1.5, end: 0 }, lifespan: 1000, frequency: 500, emitZone: { type: 'random', source: new Phaser.Geom.Ellipse(0, 0, 300, 200) } });
+        this.physics.world.setBounds(0, 0, bg.width, bg.height);
+        this.cameras.main.setBounds(0, 0, bg.width, bg.height);
+        
+        // 🌟 화면이 너무 작아 보이지 않도록 카메라 줌을 2배로 당김 (필요시 2.5 등으로 조절 가능)
+        this.cameras.main.setZoom(2); 
 
-        this.portal = this.add.rectangle(40, 600, 80, 200, 0x8B4513); this.physics.add.existing(this.portal, true);
-        this.add.text(100, 600, '◀ 캠프로', { fontSize: '20px', fill: '#fff', fontStyle: 'bold' }).setOrigin(0.5);
+        // [2] 장애물(투명 벽) 그룹 생성
+        this.obstacles = this.physics.add.staticGroup();
+        this.obstacles.add(this.add.rectangle(bg.width / 2, bg.height + 8, bg.width, 16, 0x0000ff, 0)); 
+        this.obstacles.add(this.add.rectangle(bg.width / 2, -8, bg.width, 16, 0x0000ff, 0));      
+        this.obstacles.add(this.add.rectangle(-8, bg.height / 2, 16, bg.height, 0x0000ff, 0));      
+        this.obstacles.add(this.add.rectangle(bg.width + 8, bg.height / 2, 16, bg.height, 0x0000ff, 0)); 
 
-        this.player = this.add.rectangle(150, 600, 32, 32, 0xFFFFFF); this.physics.add.existing(this.player);
-        this.player.body.setCollideWorldBounds(true); this.physics.add.collider(this.player, this.trees);
-        this.cameras.main.startFollow(this.player, true, 0.08, 0.08); this.keys = this.input.keyboard.addKeys('W,A,S,D,F');
+        // [3] 포탈 세팅
+        this.portal = this.add.rectangle(40, bg.height / 2, 60, 160, 0x8B4513, 0); 
+        this.physics.add.existing(this.portal, true);
 
+        // [4] 플레이어 생성 (🌟 크기를 0.15로 고정)
+        let startX = 100;
+        let startY = bg.height / 2;
+
+        this.player = this.physics.add.sprite(startX, startY, 'player_asset');
+        this.player.setScale(0.15); // 앞으로 모든 씬에서 0.15 고정!
+        this.player.body.setCollideWorldBounds(true); 
+
+        this.physics.add.collider(this.player, this.obstacles);
+        this.cameras.main.startFollow(this.player, true, 0.08, 0.08); 
+
+        // [5] 입력 및 이벤트
+        this.keys = this.input.keyboard.addKeys('W,A,S,D,F');
         this.materials = this.physics.add.group();
 
-        this.time.addEvent({ delay: 10000, callback: () => { if (this.treePositions.length > 0) { const pos = Phaser.Utils.Array.GetRandom(this.treePositions); this.spawnMaterialAround(pos.x, pos.y, 80, '나무', '#32cd32', 10); } }, loop: true });
-        this.time.addEvent({ delay: 8000, callback: () => this.spawnMaterialAround(800, 950, 120, '흙', '#8b4513', 6), loop: true });
-
-        for(let i=0; i<3; i++) {
-            const pos = Phaser.Utils.Array.GetRandom(this.treePositions);
-            this.spawnMaterialAround(pos.x, pos.y, 80, '나무', '#32cd32', 10);
-            this.spawnMaterialAround(800, 950, 120, '흙', '#8b4513', 6);
-        }
-    }
-
-    createTree(x, y, radius, color) {
-        const tree = this.add.circle(x, y, radius, color);
-        this.physics.add.existing(tree, true);
-        this.trees.add(tree);
-        if (x > 100 && x < 1500 && y > 100 && y < 1100) this.treePositions.push({x: x, y: y});
-    }
-
-    createForestEnvironment() {
-        for (let i = 0; i <= 1600; i += 60) { this.createTree(i, 30, 40, 0x112b12); this.createTree(i, 1170, 40, 0x112b12); }
-        for (let i = 0; i <= 1200; i += 60) { if (i > 500 && i < 700) continue; this.createTree(30, i, 40, 0x112b12); this.createTree(1570, i, 40, 0x112b12); }
-        
-        // 🌟 오픈 루프 미로 구조 (구불구불하지만 막힌 Dead End가 없는 유기적 배치)
-        for (let y = 200; y < 1100; y += 160) {
-            for (let x = 200; x < 1500; x += 180) {
-                // 입구 근처(왼쪽)와 흙 파밍 구역(800, 950)은 무조건 완벽하게 비워둠
-                if (x < 350 && y > 450 && y < 750) continue;
-                if (Math.abs(x - 800) < 180 && Math.abs(y - 950) < 140) continue;
-
-                // 클러스터(군락) 형태로 나무를 예쁘게 뭉쳐 심음
-                let jitterX = x + Phaser.Math.Between(-40, 40);
-                let jitterY = y + Phaser.Math.Between(-40, 40);
-                
-                this.createTree(jitterX, jitterY, 45, 0x1B4D22);
-                this.createTree(jitterX + 35, jitterY - 25, 35, 0x228B22);
-            }
-        }
+        this.time.addEvent({ 
+            delay: 8000, 
+            callback: () => this.spawnMaterialAround(bg.width / 2, bg.height / 2, 150, '나무', '#32cd32', 8), 
+            loop: true 
+        });
     }
 
     spawnMaterialAround(x, y, radius, name, colorHex, maxLimit) {
         if (this.materials.getChildren().filter(m => m.name === name).length >= maxLimit) return;
-        let valid = false, spawnX, spawnY; const trees = this.trees.getChildren();
+        let valid = false, spawnX, spawnY; 
+        const obstacles = this.obstacles.getChildren();
+
         for(let i=0; i<30; i++) {
-            const angle = Math.random() * Math.PI * 2; const r = 30 + Math.random() * (radius - 30);
-            spawnX = Math.max(50, Math.min(1550, x + Math.cos(angle) * r));
-            spawnY = Math.max(50, Math.min(1150, y + Math.sin(angle) * r));
+            const angle = Math.random() * Math.PI * 2; 
+            const r = 30 + Math.random() * (radius - 30);
+            spawnX = Math.max(50, Math.min(this.physics.world.bounds.width - 50, x + Math.cos(angle) * r));
+            spawnY = Math.max(50, Math.min(this.physics.world.bounds.height - 50, y + Math.sin(angle) * r));
             valid = true;
-            for(let t of trees) { if (Phaser.Math.Distance.Between(spawnX, spawnY, t.x, t.y) < (t.width/2) + 15) { valid = false; break; } }
+
+            for(let o of obstacles) { 
+                if (Phaser.Math.Distance.Between(spawnX, spawnY, o.x, o.y) < (Math.max(o.width, o.height)/2) + 15) { 
+                    valid = false; break; 
+                } 
+            }
             if(valid) break;
         }
+
         if(!valid) return; 
         const mat = this.add.circle(spawnX, spawnY, 8, Phaser.Display.Color.HexStringToColor(colorHex).color);
-        mat.name = name; mat.colorHex = colorHex; mat.setScale(0); this.tweens.add({ targets: mat, scale: 1, duration: 400, ease: 'Back.easeOut' });
-        this.physics.add.existing(mat); this.materials.add(mat);
+        mat.name = name; 
+        mat.colorHex = colorHex; 
+        mat.setScale(0); 
+        this.tweens.add({ targets: mat, scale: 1, duration: 400, ease: 'Back.easeOut' });
+        this.physics.add.existing(mat); 
+        this.materials.add(mat);
     }
 
-    createPickupBurst(x, y, colorHex) { const colorVal = Phaser.Display.Color.HexStringToColor(colorHex).color; this.add.particles(x, y, 'pixel', { tint: colorVal, speed: { min: 50, max: 150 }, scale: { start: 1.2, end: 0 }, lifespan: 500, blendMode: 'ADD', duration: 100 }); }
-    showFloatingText(x, y, message, colorHex) { const t = this.add.text(x, y - 20, message, { fontSize: '18px', fill: colorHex, fontStyle: 'bold' }).setOrigin(0.5); this.tweens.add({ targets: t, y: y - 60, alpha: 0, duration: 1000, onComplete: () => t.destroy() }); }
-
-    updateReplicatorsTick() {
-        const now = Date.now();
-        this.replicators.forEach(rep => {
-            if (rep && rep.item) {
-                const elapsed = now - rep.lastTick;
-                if (elapsed >= this.repTime) {
-                    const ticks = Math.floor(elapsed / this.repTime);
-                    this.wordInventory[rep.item] = (this.wordInventory[rep.item] || 0) + (this.repYield * ticks);
-                    this.addDiscoveredWord(rep.item);
-                    rep.lastTick += ticks * this.repTime;
-                }
-            }
-        });
+    createPickupBurst(x, y, colorHex) { 
+        const colorVal = Phaser.Display.Color.HexStringToColor(colorHex).color; 
+        this.add.particles(x, y, 'pixel', { tint: colorVal, speed: { min: 50, max: 150 }, scale: { start: 1.2, end: 0 }, lifespan: 500, blendMode: 'ADD', duration: 100 }); 
+    }
+    
+    showFloatingText(x, y, message, colorHex) { 
+        const t = this.add.text(x, y - 20, message, { fontSize: '18px', fill: colorHex, fontStyle: 'bold' }).setOrigin(0.5); 
+        this.tweens.add({ targets: t, y: y - 60, alpha: 0, duration: 1000, onComplete: () => t.destroy() }); 
     }
 
     update() {
-        this.updateReplicatorsTick();
         let vx = 0, vy = 0;
         if (this.keys.A.isDown) vx = -this.playerSpeed; else if (this.keys.D.isDown) vx = this.playerSpeed;
         if (this.keys.W.isDown) vy = -this.playerSpeed; else if (this.keys.S.isDown) vy = this.playerSpeed;
@@ -132,7 +135,7 @@ export default class ForestScene extends Phaser.Scene {
                 }
             });
 
-            if (Phaser.Math.Distance.BetweenPoints(this.player, this.portal) < 100) {
+            if (Phaser.Math.Distance.BetweenPoints(this.player, this.portal) < 80) {
                 this.scene.start('BaseCampScene', { spawnFrom: 'Forest' });
             }
         }
