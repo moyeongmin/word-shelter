@@ -552,3 +552,81 @@
        color: #fff;
        font-size: 1.1rem;
    }
+
+
+/* =========================================
+   🎬 컷신 & 대화창 UI (반응형 완벽 대응)
+========================================= */
+#cutscene-container {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100vw; height: 100vh;
+    background-color: rgba(0, 0, 0, 0.85); /* 어두운 배경 */
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between; /* 상단 이미지, 하단 대화창 배치 */
+    align-items: center;
+    padding: 20px 20px 30px 20px;
+    box-sizing: border-box;
+    overflow: hidden;
+}
+
+#cutscene-container.hidden {
+    display: none !important;
+}
+
+#cutscene-image {
+    flex: 1; /* 남은 공간을 알아서 차지 */
+    width: 100%;
+    max-width: 1000px;
+    max-height: 60vh; /* 화면 높이의 최대 55%만 차지하게 제한 */
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    margin-bottom: 15px;
+    margin-top: 40px;
+}
+
+#dialogue-box {
+    position: relative;
+    width: 90%;
+    max-width: 850px;
+    background: rgba(15, 15, 30, 0.95);
+    border: 3px solid #00ffff;
+    box-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
+    border-radius: 12px;
+    padding: 20px 30px;
+    color: #fff;
+    box-sizing: border-box;
+    flex-shrink: 0; /* 화면이 작아져도 대화창 크기는 줄어들거나 박살나지 않음 */
+}
+
+#speaker-name {
+    font-size: 22px;
+    font-weight: bold;
+    color: #ff00ff;
+    margin-bottom: 10px;
+    text-shadow: 2px 2px 0px #000;
+}
+
+#dialogue-text {
+    font-size: 18px;
+    line-height: 1.5;
+    min-height: 50px;
+    text-shadow: 1px 1px 0px #000;
+}
+
+.dialogue-hint {
+    position: absolute;
+    bottom: 12px;
+    right: 20px;
+    font-size: 13px;
+    color: #00ffff;
+    animation: blink 1.2s infinite;
+}
+
+@keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.2; }
+}

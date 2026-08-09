@@ -21,6 +21,8 @@ export default class BaseCampScene extends Phaser.Scene {
 
         this.load.image('item_fire', 'assets/images/item_fire.png');
         this.load.image('item_water', 'assets/images/item_water.png');
+
+        this.load.image('cutscene_3', 'assets/images/StartScene3.png');
     }
 
     // 🌟 1. 확실한 데이터 저장 함수
@@ -217,6 +219,41 @@ export default class BaseCampScene extends Phaser.Scene {
         this.portalModalDesc = document.getElementById('portal-modal-desc');
         this.targetSceneName = null;
         this.targetSpawnFrom = 'BaseCamp';
+        // [추가] 청소 팝업 & 컷신 바인딩
+        this.cleanModal = document.getElementById('clean-confirm-modal');
+        this.cutsceneContainer = document.getElementById('cutscene-container');
+        this.speakerNameEl = document.getElementById('speaker-name');
+        this.dialogueTextEl = document.getElementById('dialogue-text');
+
+        // 청소 팝업 버튼 이벤트
+        if (this.cleanModal) {
+            document.getElementById('clean-yes-btn').onclick = (e) => {
+                e.stopPropagation();
+                this.cleanModal.classList.add('hidden');
+                this.startWorkbenchCutscene(); // 컷신 시작!
+            };
+            document.getElementById('clean-no-btn').onclick = (e) => {
+                e.stopPropagation();
+                this.cleanModal.classList.add('hidden');
+                this.input.keyboard.resetKeys();
+                this.input.keyboard.enabled = true;
+            };
+        }
+
+        // 기존 F키(portalKeyHandler) 로직을 통합형으로 교체!
+        this.uiKeyHandler = (e) => {
+            if (e.code === 'KeyF' || e.key === 'f' || e.key === 'F' || e.key === 'ㄹ') {
+                if (this.portalModal && !this.portalModal.classList.contains('hidden')) {
+                    e.preventDefault(); e.stopPropagation();
+                    document.getElementById('portal-yes-btn').click();
+                } else if (this.cleanModal && !this.cleanModal.classList.contains('hidden')) {
+                    e.preventDefault(); e.stopPropagation();
+                    document.getElementById('clean-yes-btn').click();
+                }
+            }
+        };
+        window.addEventListener('keydown', this.uiKeyHandler);
+        this.events.once('shutdown', () => { window.removeEventListener('keydown', this.uiKeyHandler); });
 
         if(this.portalModal) {
             document.getElementById('portal-yes-btn').onclick = (e) => {
@@ -234,20 +271,6 @@ export default class BaseCampScene extends Phaser.Scene {
                 this.targetSceneName = null;
             };
         }
-
-        // 🌟 포탈 팝업 F키 자동 클릭 이벤트
-        this.portalKeyHandler = (e) => {
-            if (e.code === 'KeyF' || e.key === 'f' || e.key === 'F' || e.key === 'ㄹ') {
-                if (this.portalModal && !this.portalModal.classList.contains('hidden')) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    document.getElementById('portal-yes-btn').click();
-                }
-            }
-        };
-        window.addEventListener('keydown', this.portalKeyHandler);
-        this.events.once('shutdown', () => { window.removeEventListener('keydown', this.portalKeyHandler); });
-
         document.getElementById('open-upgrade-btn').onclick = (e) => { e.stopPropagation(); this.openUpgradeUI(); };
         document.getElementById('close-upgrade-btn').onclick = (e) => { e.stopPropagation(); this.upgradeModal.classList.add('hidden'); this.hudContainer.classList.remove('hidden'); this.input.keyboard.resetKeys(); this.input.keyboard.enabled = true; };
         document.getElementById('hamburger-btn').onclick = (e) => { e.stopPropagation(); this.toggleSystemMenu(); };
@@ -499,13 +522,11 @@ export default class BaseCampScene extends Phaser.Scene {
 
             // 작업대 청소 & 상호작용
             if (Phaser.Math.Distance.BetweenPoints(this.player, this.workbenchZone) < 80) {
-                // 🌟 this.isWorkbenchCleaned 대신 레지스트리 원본을 검사
                 if (!this.registry.get('isWorkbenchCleaned')) {
-                    this.isWorkbenchCleaned = true;
-                    this.registry.set('isWorkbenchCleaned', true);
-                    this.workbenchImg.setTexture('obj_table_clean');
-                    console.log("🧹 작업대 청소 완료 및 저장");
-                    this.saveGameData();
+                    // 🌟 수정됨: 즉시 청소하지 않고 확인 팝업 오픈!
+                    this.input.keyboard.resetKeys();
+                    this.input.keyboard.enabled = false;
+                    this.cleanModal.classList.remove('hidden');
                 } else {
                     this.openAlchemyDesk();
                 }   
@@ -799,6 +820,88 @@ export default class BaseCampScene extends Phaser.Scene {
         this.registry.set('replicators', this.replicators);
 
         this.syncReplicatorUI(); this.renderAlchemyPouch(); 
+        this.saveGameData();
+    }
+
+    // ==========================================
+    // 🎬 대화 & 컷신 로직
+    // ==========================================
+// ==========================================
+    // 🎬 대화 & 컷신 로직
+    // ==========================================
+    startWorkbenchCutscene() {
+        this.input.keyboard.resetKeys();
+        this.input.keyboard.enabled = false;
+        this.cutsceneContainer.classList.remove('hidden');
+        this.hudContainer.classList.add('hidden');
+
+        // 🖼️ 컷신 이미지(StartScene3.png) 띄우기!
+        const cutsceneImgEl = document.getElementById('cutscene-image');
+        if (cutsceneImgEl) {
+            cutsceneImgEl.style.backgroundImage = "url('assets/images/StartScene3.png')";
+        }
+
+        // 스크립트 목록
+        const scripts = [
+            { name: "???", text: "더러운 먼지더미에서 꺼내줘서 고맙다냥!" },
+            { name: "???", text: "이렇게나 깨끗이 청소해주다니..." },
+            { name: "???", text: "고마우니 소원을 하나 들어줄게." },
+            { name: "나", text: "집에서 쫓겨나서 당장 살 곳이 필요해..." },
+            { name: "연금술 냥이", text: "그럼 재료를 구해다 주면 집을 만들어 주겠다냥!" },
+            { name: "연금술 냥이", text: "숲에서 기초 재료를 주워 오면, 이 장치에서 새로운 재료로 합성할 수 있다!" }
+        ];
+
+        let currentStep = 0;
+
+        const showNextScript = () => {
+            if (currentStep >= scripts.length) {
+                this.endWorkbenchCutscene();
+                return;
+            }
+            
+            const currentData = scripts[currentStep];
+            this.speakerNameEl.innerText = currentData.name;
+            this.dialogueTextEl.innerText = currentData.text;
+            
+            if (currentData.name === "나") {
+                this.speakerNameEl.style.color = "#00ffff"; // 주인공: 시안색
+            } else {
+                this.speakerNameEl.style.color = "#ff00ff"; // NPC: 마젠타색
+            }
+
+            currentStep++;
+        };
+
+        showNextScript();
+
+        this.advanceCutsceneHandler = (e) => {
+            if (e.type === 'click' || (e.type === 'keydown' && (e.code === 'KeyF' || e.key === 'f' || e.key === 'F'))) {
+                e.preventDefault();
+                showNextScript();
+            }
+        };
+
+        setTimeout(() => {
+            window.addEventListener('keydown', this.advanceCutsceneHandler);
+            this.cutsceneContainer.addEventListener('click', this.advanceCutsceneHandler);
+        }, 100);
+    }
+
+    endWorkbenchCutscene() {
+        // 이벤트 해제
+        window.removeEventListener('keydown', this.advanceCutsceneHandler);
+        this.cutsceneContainer.removeEventListener('click', this.advanceCutsceneHandler);
+
+        // UI 복구
+        this.cutsceneContainer.classList.add('hidden');
+        this.hudContainer.classList.remove('hidden');
+        this.input.keyboard.enabled = true;
+
+        // 🌟 컷신이 끝나면 드디어 맵의 작업대 텍스처 변경 & 세이브!
+        this.isWorkbenchCleaned = true;
+        this.registry.set('isWorkbenchCleaned', true);
+        this.workbenchImg.setTexture('obj_table_clean');
+        console.log("🧹 컷신 종료: 작업대 청소 완료 및 저장");
         this.saveGameData();
     }
 }
