@@ -585,3 +585,48 @@ button:active { transform: scale(0.95); }
     pointer-events: none;
     box-shadow: 0 0 15px rgba(0, 255, 255, 0.4);
 }
+
+/* ==========================================================================
+   🌟 연금술 작업대 아이템 (이미지 + 텍스트) 스타일
+   ========================================================================== */
+   .material-icon {
+    width: 42px;
+    height: 42px;
+    object-fit: contain;
+    pointer-events: none; 
+    user-select: none;
+    filter: drop-shadow(0 0 5px rgba(0, 255, 255, 0.8));
+}
+
+/* 주머니 속 버블 (위: 이미지, 중간: 이름, 아래: 개수) */
+.word-bubble.has-image {
+    display: inline-flex !important;
+    flex-direction: column !important; /* 위아래 세로 배치 */
+    align-items: center;
+    justify-content: center;
+    padding: 8px 12px !important;
+    gap: 2px; /* 간격 축소 */
+    background-color: rgba(16, 28, 58, 0.9);
+    border-radius: 12px;
+    text-align: center;
+    min-width: 60px;
+}
+
+/* 복제기 슬롯 안의 이미지 */
+.rep-icon {
+    width: 40px;
+    height: 40px;
+    object-fit: contain;
+    pointer-events: none;
+    filter: drop-shadow(0 0 8px #ff007f);
+    animation: pop-bounce 0.3s ease-out;
+}
+
+/* 복제기 활성화 시 레이아웃 (위: 이미지, 아래: 이름) */
+.replicator-tube.active {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+}

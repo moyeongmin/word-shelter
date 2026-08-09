@@ -737,19 +737,38 @@ export default class BaseCampScene extends Phaser.Scene {
     }
 
     syncReplicatorUI() { 
+        const dbMaterials = this.registry.get('dbMaterials') || [];
+
         for(let i=0; i<2; i++) { 
             const dropZone = document.getElementById(`rep-drop-${i}`); 
             const removeBtn = document.getElementById(`remove-rep-${i}`); 
             if(!dropZone) continue;
+            
             if(i === 1 && !this.upgrades.slot2) { 
                 dropZone.className = 'replicator-tube locked'; 
                 dropZone.innerHTML = `<span>잠김<br>(진화 필요)</span>`; 
                 if(removeBtn) removeBtn.classList.add('hidden'); 
                 continue; 
             } 
-            if (this.replicators[i].item) { 
+
+            const itemName = this.replicators[i].item;
+
+            if (itemName) { 
                 dropZone.className = 'replicator-tube active'; 
-                dropZone.innerHTML = `<span>${this.replicators[i].item}</span>`; 
+                
+                const matData = dbMaterials.find(m => m.name === itemName);
+                const imgSrc = matData ? matData.image_url : null;
+
+                // 🌟 복제기 슬롯에도 '이미지 + 이름' 표시
+                if (imgSrc) {
+                    dropZone.innerHTML = `
+                        <img src="${imgSrc}" class="rep-icon" draggable="false">
+                        <span style="font-size: 0.8rem; font-weight: bold;">${itemName}</span>
+                    `;
+                } else {
+                    dropZone.innerHTML = `<span style="font-size: 0.9rem; font-weight: bold;">${itemName}</span>`; 
+                }
+
                 if(removeBtn) removeBtn.classList.remove('hidden'); 
             } else { 
                 dropZone.className = 'replicator-tube empty'; 
@@ -758,7 +777,6 @@ export default class BaseCampScene extends Phaser.Scene {
             } 
         } 
     }
-    
     // 🌟 화면 갱신을 MaterialField에 넘김
     renderAlchemyPouch() { 
         if (this.alchemy && this.alchemy.materialField) {
@@ -950,29 +968,37 @@ completeLostPartQuestAtWorkbench() {
         this.saveGameData();
     }
 
-    // ==========================================
-    // 🎬 대형 AI 오버레이 + 하단 바 포커스 퀘스트 대화
+// ==========================================
+    // 🎬 대형 AI 오버레이 + "잠깐!!!!" 750ms 반복 애니메이션 연출
     // ==========================================
     startBottomAreaScript() {
-        // 1) 즉시 화면 윗부분 어둡게, 하단 바 집중!
-        if (this.deskScreen) this.deskScreen.classList.add('focus-mode');
-        
-        // 2) 어두워진 배경 위로 대형 "잠깐!!!!" 오버레이 즉시 팝업!
         const interruptOverlay = document.getElementById('ai-interrupt-overlay');
+        const catImgEl = document.getElementById('ai-interrupt-cat-img');
+        
+        // 1) 즉시 화면 어둡게, 하단 바 집중 및 "잠깐!!!!" 오버레이 팝업
+        if (this.deskScreen) this.deskScreen.classList.add('focus-mode');
         if (interruptOverlay) interruptOverlay.classList.remove('hidden');
+
+        // 🌟 3번 요청 반영: sit4 <-> sit5 750ms 간격 깜빡임 애니메이션 시작!
+        let toggleState = false;
+        const animInterval = setInterval(() => {
+            if (catImgEl) {
+                toggleState = !toggleState;
+                catImgEl.src = toggleState ? 'assets/images/ai_cat_sit5.png' : 'assets/images/ai_cat_sit4.png';
+            }
+        }, 750);
 
         const dialogueBox = document.getElementById('alchemy-ai-dialogue');
         const speakerName = document.querySelector('.alchemy-ai-name');
         const actionBtn = document.getElementById('alchemy-ai-action');
         
-        // 연출 중에는 하단 버튼 임시 숨김
         if (actionBtn) actionBtn.classList.add('hidden');
 
         const scripts = [
             { name: "연금술 냥이", text: "재료는 다 모았는데... 삐빅! 시스템 오류 발생!" },
-            { name: "연금술 냥이", text: "큰일 났다냥! 집을 짓기 위한 핵심 부품이 하나 더 필요한데 없어졌다냥!" },
+            { name: "연금술 냥이", text: "큰일 났다냥! 중요한 부품이 있었는데 없어졌다냥!" },
             { name: "나", text: "어디서 잃어버렸는데?" },
-            { name: "연금술 냥이", text: "아마 북쪽 숲(North Forest) 쪽에 떨어뜨린 것 같다냥..." },
+            { name: "연금술 냥이", text: "아마 북쪽 숲 쪽에 떨어뜨린 것 같다냥..." },
             { name: "연금술 냥이", text: "북쪽 숲 포탈을 타고 넘어가서 내 [잃어버린 부품]을 꼭 찾아와 줘!" }
         ];
 
@@ -996,9 +1022,13 @@ completeLostPartQuestAtWorkbench() {
             currentStep++;
         };
 
-        // 3) 1.5초 후 "잠깐!!!!" 화면이 사라지면서 자연스럽게 첫 대사 시작
+        // 2) 1.5초(1500ms) 동안 "잠깐!!!!" 격렬하게 띄운 뒤 대화창으로 진입
         setTimeout(() => {
             if (interruptOverlay) interruptOverlay.classList.add('hidden');
+            
+            // 🌟 오버레이가 꺼질 때 깜빡임 애니메이션 타이머 정지
+            clearInterval(animInterval);
+
             if (actionBtn) {
                 actionBtn.classList.remove('hidden');
                 actionBtn.innerText = "다음 (F) ▼";
@@ -1009,7 +1039,6 @@ completeLostPartQuestAtWorkbench() {
         this.bottomDialogHandler = (e) => {
             if (e.type === 'click' || (e.type === 'keydown' && (e.code === 'KeyF' || e.key === 'f' || e.key === 'F'))) {
                 e.preventDefault();
-                // 오버레이가 떠있는 1.5초 동안은 넘기기 방지
                 if (interruptOverlay && !interruptOverlay.classList.contains('hidden')) return;
                 showNext();
             }

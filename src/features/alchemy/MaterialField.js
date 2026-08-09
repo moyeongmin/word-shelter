@@ -131,20 +131,35 @@ export default class MaterialField {
         this.renderSubmissionSlots();
     }
 
-    // 🌟 개별 아이템 생성
+    // 🌟 개별 아이템 생성 (DB 이미지 연동)
     createMaterial(word, count, index, customPos) {
         const element = document.createElement('div');
         element.className = 'word-bubble future-floating-material';
         element.draggable = true;
 
-        element.innerHTML = `${word} <span class="item-count">x${count}</span>`;
         element.style.position = 'absolute';
-
-        // 🌟 저장된 위치 확실하게 적용 (픽셀 px이든 퍼센트 %든 자동으로 맞춰줌)
         element.style.left = typeof customPos.x === 'number' ? `${customPos.x}px` : customPos.x;
         element.style.top = typeof customPos.y === 'number' ? `${customPos.y}px` : customPos.y;
 
-        // 드래그 시작 이벤트
+        // 🌟 1. DB에서 현재 단어(word)의 정보 찾기
+        const dbMaterials = this.scene.registry.get('dbMaterials') || [];
+        const matData = dbMaterials.find(m => m.name === word);
+        const imageUrl = matData ? matData.image_url : null;
+
+        // 🌟 2. 이미지가 있으면 '이미지 + 이름 + 개수' 출력
+        if (imageUrl) {
+            element.innerHTML = `
+                <img src="${imageUrl}" alt="${word}" class="material-icon" draggable="false">
+                <div style="font-size: 0.95rem; font-weight: bold; margin-top: 3px; text-shadow: 0 0 4px #000;">${word}</div>
+                <div class="item-count" style="font-size: 0.75rem; color: #00ffff; opacity: 0.8;">x${count}</div>
+            `;
+            element.classList.add('has-image');
+        } else {
+            // DB에 이미지가 없는 기본/예외 재료
+            element.innerHTML = `${word} <br><span class="item-count" style="font-size:0.8rem;">x${count}</span>`;
+            element.classList.add('has-image'); // 레이아웃 통일을 위해 클래스 추가
+        }
+        // --- 이 아래부터는 기존의 dragstart, dblclick, drop 이벤트 그대로 유지 ---
         element.addEventListener('dragstart', e => {
             e.dataTransfer.setData('text/plain', word);
             element.classList.add('dragging');
@@ -154,7 +169,6 @@ export default class MaterialField {
         element.addEventListener('dragover', (e) => { e.preventDefault(); element.classList.add('drag-over'); });
         element.addEventListener('dragleave', () => element.classList.remove('drag-over'));
 
-        // 🌟 더블클릭 시 복제기에 넣기
         element.addEventListener('dblclick', () => {
             if (typeof this.scene.insertToReplicator === 'function') {
                 const replicators = this.scene.replicators || this.scene.registry.get('replicators');
