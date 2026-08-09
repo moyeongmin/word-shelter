@@ -28,6 +28,23 @@ export default class BaseCampScene extends Phaser.Scene {
         this.load.image('item_water', 'assets/images/item_water.png');
     }
 
+    // 🌟 1. 확실한 데이터 저장 함수
+    saveGameData() {
+        const saveData = {
+            // 변수가 꼬이지 않게 레지스트리에서 직접 꺼내서 저장
+            wordInventory: this.registry.get('wordInventory'),
+            discoveredWords: this.registry.get('discoveredWords'),
+            discoveredRecipes: this.registry.get('discoveredRecipes'),
+            replicators: this.registry.get('replicators'),
+            upgrades: this.registry.get('upgrades'),
+            discoveryOrder: this.registry.get('discoveryOrder'),
+            isWorkbenchCleaned: this.registry.get('isWorkbenchCleaned')
+        };
+        localStorage.setItem('cyberAlchemySave', JSON.stringify(saveData));
+        console.log("💾 게임 저장 완료!", saveData);
+    }
+
+    // 🌟 2. 뚫리지 않는 로컬 스토리지 불러오기
     init(data) {
         if (data && data.spawnFrom) this.spawnFrom = data.spawnFrom; 
         if (!this.registry.get('houseBuildState')) {
@@ -48,8 +65,26 @@ export default class BaseCampScene extends Phaser.Scene {
                 endingReady: false
             });
         }
+
+        const savedDataString = localStorage.getItem('cyberAlchemySave');
         
-        if (!this.registry.get('isInitialized')) {
+        // isSaveLoaded라는 강력한 마커를 써서 게임 켤 때 '최초 1회만' 스토리지에서 덮어씌움
+        if (savedDataString && !this.registry.get('isSaveLoaded')) {
+            console.log("📥 세이브 파일 발견! 데이터를 복구합니다.");
+            const savedData = JSON.parse(savedDataString);
+            
+            this.registry.set('wordInventory', savedData.wordInventory || {});
+            this.registry.set('discoveredWords', savedData.discoveredWords || []);
+            this.registry.set('discoveredRecipes', savedData.discoveredRecipes || {});
+            this.registry.set('replicators', savedData.replicators || [{ item: null, lastTick: 0 }, { item: null, lastTick: 0 }]);
+            this.registry.set('upgrades', savedData.upgrades || { speed: 0, time: 0, yield: 0, slot2: false });
+            this.registry.set('discoveryOrder', savedData.discoveryOrder || []);
+            this.registry.set('isWorkbenchCleaned', !!savedData.isWorkbenchCleaned);
+
+            this.registry.set('isSaveLoaded', true);
+            this.registry.set('isInitialized', true);
+        } else if (!this.registry.get('isInitialized')) {
+            console.log("🆕 세이브 파일 없음. 새 게임을 시작합니다.");
             this.registry.set('wordInventory', {});
             this.registry.set('discoveredWords', ['불', '물', '나무', '돌', '흙']);
             this.registry.set('discoveredRecipes', {});
@@ -119,7 +154,6 @@ export default class BaseCampScene extends Phaser.Scene {
         this.cameras.main.setBounds(0, 0, bg.width, bg.height);
         this.cameras.main.setZoom(1.5); 
 
-        // 모닥불 애니메이션 세팅
         this.anims.create({
             key: 'campfire_burn',
             frames: [
@@ -137,20 +171,11 @@ export default class BaseCampScene extends Phaser.Scene {
 
         this.materials = this.physics.add.group();
 
-        // 불/물 원소 스폰
-        this.time.addEvent({
-            delay: 7000,
-            callback: () => this.spawnMaterialAround(this.campfire.x, this.campfire.y, 40, 80, '불', 'item_fire', 5),
-            loop: true
-        });
-
+        this.time.addEvent({ delay: 7000, callback: () => this.spawnMaterialAround(this.campfire.x, this.campfire.y, 40, 80, '불', 'item_fire', 5), loop: true });
+        
         const pondCenterX = bg.width * 0.7;
         const pondCenterY = bg.height * 0.765;
-        this.time.addEvent({ 
-            delay: 5000, 
-            callback: () => this.spawnMaterialAround(pondCenterX, pondCenterY, 80, 130, '물', 'item_water', 5, Math.PI, Math.PI * 1.5), 
-            loop: true 
-        });
+        this.time.addEvent({ delay: 5000, callback: () => this.spawnMaterialAround(pondCenterX, pondCenterY, 80, 130, '물', 'item_water', 5, Math.PI, Math.PI * 1.5), loop: true });
 
         // 픽셀 텍스처
         if (!this.textures.exists('pixel')) { 
@@ -163,26 +188,15 @@ export default class BaseCampScene extends Phaser.Scene {
         // 스폰 위치 로직
         let startX = bg.width / 2;
         let startY = bg.height - 50; 
-        if (this.spawnFrom === 'Camp2Cave') { 
-            startX = bg.width - 50; 
-            startY = bg.height / 2; 
-        } else if (this.spawnFrom === 'NorthSide') { 
-            startX = bg.width / 2; 
-            startY = 80; 
-        }
+        if (this.spawnFrom === 'Camp2Cave') { startX = bg.width - 50; startY = bg.height / 2; } 
+        else if (this.spawnFrom === 'NorthSide') { startX = bg.width / 2; startY = 80; }
         
         this.player = this.physics.add.sprite(startX, startY, 'player_asset'); 
         this.player.setScale(0.15); 
         this.player.body.setCollideWorldBounds(true);
+        this.player.body.setSize(this.player.width * 0.25, 30); 
+        this.player.body.setOffset(this.player.width * 0.38, this.player.height - 110);
 
-        const hitBoxWidth = this.player.width * 0.25;
-        const hitBoxHeight = 30; 
-        this.player.body.setSize(hitBoxWidth, hitBoxHeight); 
-        const offsetX = this.player.width * 0.38; 
-        const offsetY = this.player.height - 110;  
-        this.player.body.setOffset(offsetX, offsetY);
-
-        // --- 작업대 세팅 ---
         const tableX = bg.width / 2;
         const tableY = bg.height / 2;
         const initialTexture = this.isWorkbenchCleaned ? 'obj_table_clean' : 'obj_table_messy';
@@ -193,30 +207,54 @@ export default class BaseCampScene extends Phaser.Scene {
         this.workbenchZone = this.add.rectangle(tableX, tableY + 15, 100, 60, 0x0, 0); 
         this.physics.add.existing(this.workbenchZone, true);
 
-        // 연못 충돌박스 분할
-        this.pondBottom = this.add.rectangle(bg.width * 0.70, bg.height * 0.765, 180, 84, 0x0000ff, 0);
-        this.pondRight = this.add.rectangle(bg.width * 0.70 + 14, bg.height * 0.65 + 5, 150, 40, 0x0000ff, 0);
-        
+        // 맵 충돌망 (투명도 0으로 안보이게 처리)
         this.debugBoundaries = this.physics.add.staticGroup();
-        this.debugBoundaries.addMultiple([this.pondBottom, this.pondRight]);
+        const wallThickness = 40; 
+        const topWallLeft = this.add.rectangle(bg.width * 0.23, wallThickness/2, bg.width * 0.4, wallThickness, 0x0000ff, 0);
+        const topWallLeft2 = this.add.rectangle(bg.width * 0.2, bg.height * 0.15, bg.width * 0.4, 100, 0x0000ff, 0);
+        const topWallRight = this.add.rectangle(bg.width * 0.8, wallThickness/2, bg.width * 0.47, wallThickness, 0x0000ff, 0);
+        const topWallRight2 = this.add.rectangle(bg.width * 0.8, bg.height * 0.086, bg.width * 0.42, 30, 0x0000ff, 0);
+        const bottomWall = this.add.rectangle(bg.width *0.3, bg.height - wallThickness/2, 270, 49, 0x0000ff, 0);
+        const bottomWall2 = this.add.rectangle(bg.width *0.3, bg.height * 0.9, 210, 30, 0x0000ff, 0);
+        const bottomWall3 = this.add.rectangle(bg.width *0.25, bg.height * 0.86, 200, 20, 0x0000ff, 0);
+        const bottomWallRight = this.add.rectangle(bg.width * 0.7, bg.height - wallThickness/3, 265, 30, 0x0000ff, 0);
+        const bottomWallRight2 = this.add.rectangle(bg.width * 0.7, bg.height * 0.94, 200, 20, 0x0000ff, 0);
+        const bottomWallRight3 = this.add.rectangle(bg.width * 0.77, bg.height * 0.91, 130, 20, 0x0000ff, 0);
+        const bottomWallRight4 = this.add.rectangle(bg.width * 0.77, bg.height * 0.88, 100, 20, 0x0000ff, 0);
+        const leftWall = this.add.rectangle(bg.width * 0.15, bg.height * 0.2, 30, 550, 0x0000ff, 0);
+        const leftWall2 = this.add.rectangle(bg.width * 0.17, bg.height * 0.63, 20, 40, 0x0000ff, 0);
+        const leftWall3 = this.add.rectangle(bg.width * 0.18, bg.height * 0.755, 34, 100, 0x0000ff, 0);
+        const leftWall4 = this.add.rectangle(bg.width * 0.2, bg.height * 0.82, 40, 30, 0x0000ff, 0);
+        const rightWallTop = this.add.rectangle(bg.width - wallThickness/2, bg.height * 0.2, 165, bg.height * 0.44, 0x0000ff, 0);
+        const rightWallBottom = this.add.rectangle(bg.width - wallThickness/2, bg.height * 0.8, 300, bg.height * 0.37, 0x0000ff, 0);
+        const rightWallBottom2 = this.add.rectangle(bg.width - wallThickness/2, bg.height * 0.58, 230, 40, 0x0000ff, 0); 
+        const rightWallBottom3 = this.add.rectangle(bg.width * 0.82, bg.height * 0.85, 30, 120, 0x0000ff, 0);
+        const leftRock = this.add.rectangle(bg.width * 0.22, bg.height * 0.29, 30, 70, 0x0000ff, 0);
+        const leftRock2 = this.add.rectangle(bg.width * 0.282, bg.height * 0.275, 34, 35, 0x0000ff, 0);
+        const leftRock3 = this.add.rectangle(bg.width * 0.315, bg.height * 0.28, 27, 20, 0x0000ff, 0);
+        const leftGrass = this.add.rectangle(bg.width * 0.2, bg.height * 0.34, 70, 30, 0x0000ff, 0);
+        const leftGrass2 = this.add.rectangle(bg.width * 0.183, bg.height * 0.5, 40, 65, 0x0000ff, 0);
+        const rightGrass = this.add.rectangle(bg.width * 0.69, bg.height * 0.15, 35, 40, 0x0000ff, 0);
+        const rightGrass2 = this.add.rectangle(bg.width * 0.82, bg.height * 0.147, 40, 45, 0x0000ff, 0);
+        const rightGrass3 = this.add.rectangle(bg.width * 0.875, bg.height * 0.215, 80, 40, 0x0000ff, 0);
+        const rightGrass4 = this.add.rectangle(bg.width * 0.884, bg.height * 0.275, 32, 40, 0x0000ff, 0);
+        this.pondBottom = this.add.rectangle(bg.width * 0.70, bg.height * 0.765, 180, 84, 0x0000ff, 0);
+        this.pondRight = this.add.rectangle(bg.width * 0.70 + 14 , bg.height * 0.65, 140, 40, 0x0000ff, 0);
 
-        // 포탈
+        this.debugBoundaries.addMultiple([topWallLeft, topWallLeft2, topWallRight, topWallRight2, bottomWall, bottomWall2, bottomWall3, bottomWallRight, bottomWallRight2, bottomWallRight3, bottomWallRight4, leftWall, leftWall2, leftWall3, leftWall4, rightWallTop, rightWallBottom, rightWallBottom2, rightWallBottom3, leftRock, leftRock2, leftRock3, leftGrass, leftGrass2, rightGrass, rightGrass2, rightGrass3, rightGrass4, this.pondBottom, this.pondRight]);
+
         this.northPortal = this.add.rectangle(bg.width / 2, 20, 200, 40, 0x00ff00, 0); 
         this.physics.add.existing(this.northPortal, true);
-
         this.camp2CavePortal = this.add.rectangle(bg.width - 20, bg.height / 2, 40, 150, 0x00ff00, 0); 
         this.physics.add.existing(this.camp2CavePortal, true);
 
-        // 충돌 설정
         this.physics.add.collider(this.player, this.workbenchZone);
         this.physics.add.collider(this.player, this.debugBoundaries);
 
         this.cameras.main.startFollow(this.player, true, 0.08, 0.08);
         this.keys = this.input.keyboard.addKeys('W,A,S,D,F,ESC,T');
 
-        // ==========================================
-        // 🌟 DOM 바인딩 및 이벤트 처리
-        // ==========================================
+        // DOM 바인딩
         this.sysMenuModal = document.getElementById('system-menu-modal'); 
         this.dictModal = document.getElementById('dictionary-modal');
         this.upgradeModal = document.getElementById('upgrade-modal'); 
@@ -243,9 +281,7 @@ export default class BaseCampScene extends Phaser.Scene {
                 this.portalModal.classList.add('hidden');
                 this.input.keyboard.resetKeys();
                 this.input.keyboard.enabled = true;
-                if (this.targetSceneName) {
-                    this.scene.start(this.targetSceneName, { spawnFrom: this.targetSpawnFrom });
-                }
+                if (this.targetSceneName) this.scene.start(this.targetSceneName, { spawnFrom: this.targetSpawnFrom });
             };
             document.getElementById('portal-no-btn').onclick = (e) => {
                 e.stopPropagation();
@@ -361,37 +397,25 @@ export default class BaseCampScene extends Phaser.Scene {
                 if (!o) continue; 
                 const w = o.displayWidth || o.width; const h = o.displayHeight || o.height;
                 const padding = 15; 
-                const left = o.x - (w / 2) - padding; const right = o.x + (w / 2) + padding;
-                const top = o.y - (h / 2) - padding; const bottom = o.y + (h / 2) + padding;
-                if (spawnX > left && spawnX < right && spawnY > top && spawnY < bottom) { isValid = false; break; }
+                if (spawnX > o.x - (w / 2) - padding && spawnX < o.x + (w / 2) + padding && spawnY > o.y - (h / 2) - padding && spawnY < o.y + (h / 2) + padding) { isValid = false; break; }
             }
             attempts++;
         }
-
         if (!isValid) return; 
         const item = this.physics.add.sprite(spawnX, spawnY, textureKey);
         item.name = itemName; item.setScale(0); 
-        this.tweens.add({ targets: item, scale: 0.15, duration: 400, ease: 'Back.easeOut',
-            onComplete: () => { this.tweens.add({ targets: item, y: item.y - 8, duration: 1200, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' }); }
-        });
+        this.tweens.add({ targets: item, scale: 0.15, duration: 400, ease: 'Back.easeOut', onComplete: () => { this.tweens.add({ targets: item, y: item.y - 8, duration: 1200, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' }); } });
         this.materials.add(item);
     }
 
     updateInteractableOutlines() {
-        const targets = [
-            { img: this.workbenchImg, zone: this.workbenchZone, radius: 80 },
-            ...this.materials.getChildren().map(mat => ({ img: mat, zone: mat, radius: 50 }))
-        ];
-
+        const targets = [{ img: this.workbenchImg, zone: this.workbenchZone, radius: 80 }, ...this.materials.getChildren().map(mat => ({ img: mat, zone: mat, radius: 50 }))];
         targets.forEach(t => {
             if (!t.img || !t.img.active) return;
-            const dist = Phaser.Math.Distance.BetweenPoints(this.player, t.zone);
-            const isNear = dist < t.radius; 
-            
+            const isNear = Phaser.Math.Distance.BetweenPoints(this.player, t.zone) < t.radius; 
             if (isNear && !t.img.hasOutline) {
                 t.img.outlineFX = t.img.preFX.addGlow(0xffffff, 2.5, 0, false);
-                t.img.hasOutline = true;
-                t.img.baseScale = t.img.scale; 
+                t.img.hasOutline = true; t.img.baseScale = t.img.scale; 
                 this.tweens.add({ targets: t.img, scale: t.img.baseScale * 1.15, duration: 150, ease: 'Back.easeOut' });
             } else if (!isNear && t.img.hasOutline) {
                 if (t.img.outlineFX) t.img.preFX.remove(t.img.outlineFX);
@@ -403,7 +427,6 @@ export default class BaseCampScene extends Phaser.Scene {
 
     update() {
         if (!this.player.active) return;
-
         this.updateInteractableOutlines();
         this.alchemy?.update();
 
@@ -412,8 +435,7 @@ export default class BaseCampScene extends Phaser.Scene {
         }
 
         if (!this.deskScreen.classList.contains('hidden') || !this.sysMenuModal.classList.contains('hidden') || !this.dictModal.classList.contains('hidden') || !this.upgradeModal.classList.contains('hidden') || (this.portalModal && !this.portalModal.classList.contains('hidden'))) { 
-            this.player.body.setVelocity(0, 0); 
-            return; 
+            this.player.body.setVelocity(0, 0); return; 
         }
         
         let vx = 0, vy = 0;
@@ -428,11 +450,16 @@ export default class BaseCampScene extends Phaser.Scene {
             this.materials.getChildren().forEach((item) => {
                 if (item.active && Phaser.Math.Distance.BetweenPoints(this.player, item) < 50) {
                     this.wordInventory[item.name] = (this.wordInventory[item.name] || 0) + 1;
+                    
+                    // 🌟 인벤토리가 변했음을 엔진 시스템에 강제 보고!
+                    this.registry.set('wordInventory', this.wordInventory);
+                    
                     if (typeof this.addDiscoveredWord === 'function') {
                         this.addDiscoveredWord(item.name);
                     }
-                    console.log(`✨ [${item.name}] 획득! (보유량: ${this.wordInventory[item.name]}개)`);
+                    console.log(`✨ [${item.name}] 획득!`);
                     item.destroy(); 
+                    this.saveGameData();
                 }
             });
 
@@ -457,7 +484,7 @@ export default class BaseCampScene extends Phaser.Scene {
                 }
             }
 
-            // 북쪽 포탈
+            // 포탈 팝업 호출
             if (Phaser.Math.Distance.BetweenPoints(this.player, this.northPortal) < 80) {
                 this.targetSceneName = 'NorthForestScene';
                 if (this.portalModalDesc) this.portalModalDesc.innerText = "북쪽 지역으로 이동하시겠습니까?";
@@ -466,7 +493,6 @@ export default class BaseCampScene extends Phaser.Scene {
                 if (this.portalModal) this.portalModal.classList.remove('hidden');
             }
 
-            // 동굴 맵 포탈
             if (Phaser.Math.Distance.BetweenPoints(this.player, this.camp2CavePortal) < 80) {
                 this.targetSceneName = 'Camp2CaveScene';
                 if (this.portalModalDesc) this.portalModalDesc.innerText = "동굴 지역으로 이동하시겠습니까?";
@@ -479,24 +505,11 @@ export default class BaseCampScene extends Phaser.Scene {
 
     toggleSystemMenu() { 
         this.input.keyboard.resetKeys();
-        if (this.sysMenuModal.classList.contains('hidden')) { 
-            this.input.keyboard.enabled = false; 
-            this.sysMenuModal.classList.remove('hidden'); 
-            this.hudContainer.classList.add('hidden'); 
-        } else { 
-            this.sysMenuModal.classList.add('hidden'); 
-            this.hudContainer.classList.remove('hidden'); 
-            this.input.keyboard.enabled = true; 
-        } 
+        if (this.sysMenuModal.classList.contains('hidden')) { this.input.keyboard.enabled = false; this.sysMenuModal.classList.remove('hidden'); this.hudContainer.classList.add('hidden'); } 
+        else { this.sysMenuModal.classList.add('hidden'); this.hudContainer.classList.remove('hidden'); this.input.keyboard.enabled = true; } 
     }
 
-    openUpgradeUI() { 
-        this.input.keyboard.resetKeys();
-        this.input.keyboard.enabled = false; 
-        this.upgradeModal.classList.remove('hidden'); 
-        this.hudContainer.classList.add('hidden'); 
-        this.renderUpgradeUI(); 
-    }
+    openUpgradeUI() { this.input.keyboard.resetKeys(); this.input.keyboard.enabled = false; this.upgradeModal.classList.remove('hidden'); this.hudContainer.classList.add('hidden'); this.renderUpgradeUI(); }
     
     renderUpgradeUI() {
         // 현재 진화 포인트
@@ -695,31 +708,18 @@ export default class BaseCampScene extends Phaser.Scene {
     }
 
     showDictList() { 
-        this.input.keyboard.resetKeys();
-        this.input.keyboard.enabled = false; 
-        this.dictModal.classList.remove('hidden'); 
-        this.hudContainer.classList.add('hidden'); 
-        document.getElementById('dict-detail-view').classList.add('hidden'); 
-        document.getElementById('dict-list-view').classList.remove('hidden'); 
+        this.input.keyboard.resetKeys(); this.input.keyboard.enabled = false; this.dictModal.classList.remove('hidden'); this.hudContainer.classList.add('hidden'); 
+        document.getElementById('dict-detail-view').classList.add('hidden'); document.getElementById('dict-list-view').classList.remove('hidden'); 
         document.getElementById('collection-count').innerText = `발견한 재료: ${this.discoveredWords.length}종`; 
-        
-        const listContainer = document.getElementById('collection-list'); 
-        listContainer.innerHTML = ''; 
-
-        const searchTerm = document.getElementById('dict-search').value.trim().toLowerCase();
-        const sortType = document.getElementById('dict-sort').value;
-
+        const listContainer = document.getElementById('collection-list'); listContainer.innerHTML = ''; 
+        const searchTerm = document.getElementById('dict-search').value.trim().toLowerCase(); const sortType = document.getElementById('dict-sort').value;
         let displayList = [...this.discoveryOrder]; 
-        if (searchTerm) { displayList = displayList.filter(word => word.toLowerCase().includes(searchTerm)); }
-        if (sortType === 'recent') { displayList.reverse(); } else if (sortType === 'alpha') { displayList.sort((a, b) => a.localeCompare(b, 'ko-KR')); } 
-
+        if (searchTerm) displayList = displayList.filter(w => w.toLowerCase().includes(searchTerm));
+        if (sortType === 'recent') displayList.reverse(); else if (sortType === 'alpha') displayList.sort((a, b) => a.localeCompare(b, 'ko-KR')); 
         if (displayList.length === 0) { listContainer.innerHTML = '<div style="color:#888; text-align:center; padding:20px;">검색 결과가 없습니다.</div>'; return; } 
-
         displayList.forEach(word => { 
-            const item = document.createElement('div'); item.className = 'collection-item'; 
-            item.innerHTML = `${word} <span style="float:right; color:#888;">▶</span>`; 
-            item.onclick = (e) => { e.stopPropagation(); this.showDictDetail(word); }; 
-            listContainer.appendChild(item); 
+            const item = document.createElement('div'); item.className = 'collection-item'; item.innerHTML = `${word} <span style="float:right; color:#00ffff;">▶</span>`; 
+            item.onclick = (e) => { e.stopPropagation(); this.showDictDetail(word); }; listContainer.appendChild(item); 
         }); 
     }
 
