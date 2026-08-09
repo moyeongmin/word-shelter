@@ -54,7 +54,7 @@ body {
     box-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
     padding: 25px;
     pointer-events: auto !important;
-    z-index: 99999 !important;
+    z-index: 99990 !important;
     box-sizing: border-box;
     background-image: linear-gradient(rgba(0, 255, 255, 0.05) 1px, transparent 1px),
                       linear-gradient(90deg, rgba(0, 255, 255, 0.05) 1px, transparent 1px);
@@ -88,7 +88,7 @@ button:active { transform: scale(0.95); }
 
 #hud-container {
     position: absolute; top: 20px; right: 20px;
-    z-index: 99999 !important; display: flex; gap: 10px; pointer-events: auto !important;
+    z-index: 99990 !important; display: flex; gap: 10px; pointer-events: auto !important;
 }
 
 .hud-btn, .hamburger-btn { font-size: 1.2rem; background: rgba(10, 15, 30, 0.9); }
@@ -100,7 +100,7 @@ button:active { transform: scale(0.95); }
 #alchemy-desk-screen {
     position: absolute; 
     top: 0; left: 0; width: 100%; height: 100%;
-    z-index: 99999 !important;
+    z-index: 99990 !important;
     background-color: rgba(10, 15, 30, 0.98);
     border: 6px solid #00ffff;
     display: flex;
@@ -418,4 +418,170 @@ button:active { transform: scale(0.95); }
     border-radius: 8px;
     background: rgba(10, 15, 30, 0.95);
     transition: all 0.5s ease;
+}
+
+/* ==========================================================================
+   🌟 1. 집짓기 10가지 재료 선택 전용 모달 (독립 팝업)
+   ========================================================================== */
+#house-select-modal {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 680px;
+    height: 480px;
+    background-color: rgba(10, 15, 30, 0.98);
+    border: 4px solid #00ffff;
+    box-shadow: 0 0 25px rgba(0, 255, 255, 0.6);
+    padding: 20px;
+    pointer-events: auto !important;
+    z-index: 999999 !important;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+}
+
+.house-modal-body {
+    display: flex;
+    flex: 1;
+    gap: 20px;
+    min-height: 0;
+    margin-top: 10px;
+}
+
+.house-modal-left {
+    flex: 1;
+    background: rgba(5, 10, 20, 0.8);
+    border: 2px solid rgba(0, 255, 255, 0.3);
+    border-radius: 8px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+}
+
+.discovered-select-list {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-wrap: wrap;
+    align-content: flex-start;
+    gap: 8px;
+    padding: 8px;
+}
+
+.discovered-chip {
+    background: #101c3a;
+    border: 1px solid #00ffff;
+    color: #00ffff;
+    padding: 6px 12px;
+    font-size: 0.95rem;
+    cursor: pointer;
+    border-radius: 4px;
+    user-select: none;
+    transition: all 0.15s ease;
+}
+
+.discovered-chip:hover {
+    background: #00ffff;
+    color: #0a0f1e;
+    box-shadow: 0 0 8px #00ffff;
+}
+
+.house-modal-right {
+    width: 250px;
+    background: rgba(5, 10, 20, 0.8);
+    border: 2px solid rgba(0, 255, 255, 0.3);
+    border-radius: 8px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+/* ==========================================================================
+   🌟 2. 하단 포커스 모드 & 아이템 버블 완벽 차단 연출
+   ========================================================================== */
+#alchemy-desk-screen.focus-mode .desk-main-grid,
+#alchemy-desk-screen.focus-mode .desk-header-area {
+    opacity: 0 !important;
+    pointer-events: none !important;
+    transition: opacity 0.4s ease;
+}
+
+#alchemy-desk-screen.focus-mode::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(5, 8, 17, 0.92);
+    z-index: 100;
+    pointer-events: auto;
+}
+
+#alchemy-desk-screen.focus-mode .alchemy-bottom-area {
+    position: relative;
+    z-index: 101;
+    box-shadow: 0 0 35px rgba(0, 255, 255, 0.6);
+    border-radius: 8px;
+    background: rgba(10, 15, 30, 0.98);
+}
+
+/* ==========================================================================
+   🌟 3. "잠깐!" 대형 AI 냥이 연출 오버레이
+   ========================================================================== */
+#ai-interrupt-overlay {
+    position: absolute;
+    top: 0; left: 0; width: 100%; height: 100%;
+    z-index: 200;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    padding-left: 50px;
+    background: rgba(5, 8, 17, 0.85);
+    box-sizing: border-box;
+}
+
+.temp-ai-head.big {
+    width: 180px;
+    height: 140px;
+    border-width: 6px;
+    box-shadow: 0 0 25px rgba(0, 255, 204, 0.8);
+}
+.temp-ai-head.big .temp-ai-antenna { width: 10px; height: 40px; left: 85px; top: -45px; }
+.temp-ai-head.big .temp-ai-antenna::before { width: 20px; height: 20px; top: -12px; left: -5px; }
+.temp-ai-head.big .temp-ai-eye { top: 45px; width: 22px; height: 16px; }
+.temp-ai-head.big .temp-ai-eye.left { left: 30px; }
+.temp-ai-head.big .temp-ai-eye.right { right: 30px; }
+.temp-ai-head.big .temp-ai-mouth { width: 60px; height: 8px; left: 60px; bottom: 25px; }
+
+.ai-speech-bubble-big {
+    margin-left: 40px;
+    background: #ff007f;
+    border: 4px solid #fff;
+    color: #fff;
+    font-size: 2.2rem;
+    font-weight: bold;
+    padding: 20px 35px;
+    box-shadow: 0 0 20px #ff007f;
+    animation: pop-bounce 0.4s ease-out;
+}
+
+@keyframes pop-bounce {
+    0% { transform: scale(0.3); opacity: 0; }
+    70% { transform: scale(1.1); }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+/* 🌟 퀘스트 HUD 상단 고정 z-index 확보 */
+.quest-hud {
+    position: absolute;
+    top: 20px; left: 20px;
+    width: 270px;
+    padding: 15px;
+    box-sizing: border-box;
+    background: rgba(10, 15, 30, 0.95);
+    border: 2px solid #00ffff;
+    border-left: 6px solid #00ffff;
+    color: #fff;
+    z-index: 999999 !important;
+    pointer-events: none;
+    box-shadow: 0 0 15px rgba(0, 255, 255, 0.4);
 }

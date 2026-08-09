@@ -1,9 +1,7 @@
 import Phaser from 'phaser';
-import { combineWords } from '../api/db.js';
 import AlchemyController from '../features/alchemy/AlchemyController.js';
 import LostPartQuest from '../features/quest/LostPartQuest.js';
 import TimeLapseSequence from '../features/ending/TimeLapseSequence.js';
-import HouseMaterialSubmission from '../features/alchemy/HouseMaterialSubmission.js';
 import QuestManager from '../features/quest/QuestManager';
 import { waitForHouseGeneration } from '../api/houseGeneration';
 
@@ -31,7 +29,7 @@ export default class BaseCampScene extends Phaser.Scene {
         this.load.image('cutscene_3', 'assets/images/StartScene3.png');
     }
 
-    // 🌟 1. 확실한 데이터 저장 함수 (로컬 스토리지)
+    // 🌟 1. 확실한 데이터 저장 함수
     saveGameData() {
         const saveData = {
             wordInventory: this.registry.get('wordInventory'),
@@ -41,7 +39,8 @@ export default class BaseCampScene extends Phaser.Scene {
             upgrades: this.registry.get('upgrades'),
             discoveryOrder: this.registry.get('discoveryOrder'),
             isWorkbenchCleaned: this.registry.get('isWorkbenchCleaned'),
-            evolutionPoints: this.registry.get('evolutionPoints')
+            evolutionPoints: this.registry.get('evolutionPoints'),
+            itemPositions: this.registry.get('itemPositions') // 위치 저장
         };
         localStorage.setItem('cyberAlchemySave', JSON.stringify(saveData));
         console.log("💾 게임 저장 완료!", saveData);
@@ -73,6 +72,7 @@ export default class BaseCampScene extends Phaser.Scene {
             this.registry.set('discoveryOrder', savedData.discoveryOrder || []);
             this.registry.set('isWorkbenchCleaned', !!savedData.isWorkbenchCleaned);
             this.registry.set('evolutionPoints', savedData.evolutionPoints || 0);
+            this.registry.set('itemPositions', savedData.itemPositions || {});
 
             this.registry.set('isSaveLoaded', true);
             this.registry.set('isInitialized', true);
@@ -86,6 +86,7 @@ export default class BaseCampScene extends Phaser.Scene {
             this.registry.set('discoveryOrder', []); 
             this.registry.set('isWorkbenchCleaned', false);
             this.registry.set('evolutionPoints', 0);
+            this.registry.set('itemPositions', {});
             this.registry.set('isInitialized', true);
         }
 
@@ -136,14 +137,16 @@ export default class BaseCampScene extends Phaser.Scene {
     create() {
         this.fetchGameDataFromDB();
 
-        // 픽셀 텍스처 생성
+        // 브라우저가 화면 맨땅에 텍스트를 뱉는 기본 동작 전역 차단
+        document.addEventListener('dragover', (e) => e.preventDefault());
+        document.addEventListener('drop', (e) => e.preventDefault());
+
         if (!this.textures.exists('pixel')) { 
             const g = this.make.graphics({x: 0, y: 0, add: false}); 
-            g.fillStyle(0xffffff, 1); 
-            g.fillRect(0, 0, 4, 4); 
-            g.generateTexture('pixel', 4, 4); 
+            g.fillStyle(0xffffff, 1); g.fillRect(0, 0, 4, 4); g.generateTexture('pixel', 4, 4); 
         }
 
+        // 🌟 배경을 Z-Depth 제일 아래로 밀기
         const bg = this.add.image(0, 0, 'bg_basecamp').setOrigin(0, 0);
         bg.setDepth(-2);
 
@@ -168,7 +171,6 @@ export default class BaseCampScene extends Phaser.Scene {
         const pondCenterY = bg.height * 0.765;
         this.time.addEvent({ delay: 5000, callback: () => this.spawnMaterialAround(pondCenterX, pondCenterY, 80, 130, '물', 'item_water', 5, Math.PI, Math.PI * 1.5), loop: true });
 
-        // 스폰 위치 로직
         let startX = bg.width / 2;
         let startY = bg.height - 50; 
         if (this.spawnFrom === 'Camp2Cave') { startX = bg.width - 50; startY = bg.height / 2; } 
@@ -186,13 +188,13 @@ export default class BaseCampScene extends Phaser.Scene {
         
         this.workbenchImg = this.add.image(tableX, tableY, initialTexture);
         this.workbenchImg.setScale(0.2);
-
+        // 🌟 작업대도 Z-Depth를 배경과 플레이어 사이로 밀기
         this.workbenchImg.setDepth(-1);
         
         this.workbenchZone = this.add.rectangle(tableX, tableY + 15, 100, 60, 0x0, 0); 
         this.physics.add.existing(this.workbenchZone, true);
 
-        // 맵 충돌망
+        // 맵 충돌망 생략...
         this.debugBoundaries = this.physics.add.staticGroup();
         const wallThickness = 40; 
         const topWallLeft = this.add.rectangle(bg.width * 0.23, wallThickness/2, bg.width * 0.4, wallThickness, 0x0000ff, 0);
@@ -225,7 +227,6 @@ export default class BaseCampScene extends Phaser.Scene {
         const rightGrass4 = this.add.rectangle(bg.width * 0.884, bg.height * 0.275, 32, 40, 0x0000ff, 0);
         this.pondBottom = this.add.rectangle(bg.width * 0.70, bg.height * 0.765, 180, 84, 0x0000ff, 0);
         this.pondRight = this.add.rectangle(bg.width * 0.70 + 14 , bg.height * 0.65, 140, 40, 0x0000ff, 0);
-
         this.debugBoundaries.addMultiple([topWallLeft, topWallLeft2, topWallRight, topWallRight2, bottomWall, bottomWall2, bottomWall3, bottomWallRight, bottomWallRight2, bottomWallRight3, bottomWallRight4, leftWall, leftWall2, leftWall3, leftWall4, rightWallTop, rightWallBottom, rightWallBottom2, rightWallBottom3, leftRock, leftRock2, leftRock3, leftGrass, leftGrass2, rightGrass, rightGrass2, rightGrass3, rightGrass4, this.pondBottom, this.pondRight]);
 
         this.northPortal = this.add.rectangle(bg.width / 2, 20, 200, 40, 0x00ff00, 0); 
@@ -244,45 +245,8 @@ export default class BaseCampScene extends Phaser.Scene {
         this.dictModal = document.getElementById('dictionary-modal');
         this.upgradeModal = document.getElementById('upgrade-modal'); 
         this.deskScreen = document.getElementById('alchemy-desk-screen');
-        this.pouchContainer = document.getElementById('magic-pouch');
         this.loadingLock = document.getElementById('alchemy-loading-lock'); 
         this.hudContainer = document.getElementById('hud-container');
-
-        // BaseCampScene.js의 create() 함수 내부 (DOM 바인딩하는 곳 아래)
-
-        this.pouchContainer = document.getElementById('magic-pouch');
-        this.bubblePositions = {}; // 👈 위치 기억용 저장소 부활!
-        // 🌟 2. 주머니에 자유롭게 드롭하는 이벤트 '한 번만' 등록
-        if (this.pouchContainer) {
-            this.pouchContainer.addEventListener('dragover', (e) => {
-                e.preventDefault();
-            });
-
-            this.pouchContainer.addEventListener('drop', (e) => {
-                e.preventDefault();
-                e.stopPropagation(); // 엉뚱한 곳으로 이벤트 튀는 것 방지
-
-                const word = e.dataTransfer.getData('text/plain');
-                if (word) {
-                    const rect = this.pouchContainer.getBoundingClientRect();
-                    const x = e.clientX - rect.left - 40; // 마우스 커서 중앙 정렬
-                    const y = e.clientY - rect.top - 20;
-
-                    // 1) 위치 기억하기
-                    this.bubblePositions[word] = { left: `${x}px`, top: `${y}px` };
-
-                    // 2) 화면 전체를 껐다 켜지 않고 해당 버블만 즉시 이동!
-                    const bubbles = document.querySelectorAll('.word-bubble');
-                    bubbles.forEach(b => {
-                        // "물 x3" 같은 텍스트가 있으므로 이름으로 찾기
-                        if (b.innerText.startsWith(word)) {
-                            b.style.left = `${x}px`;
-                            b.style.top = `${y}px`;
-                        }
-                    });
-                }
-            });
-        }
 
         // 매니저 & 퀘스트 바인딩
         this.questManager = new QuestManager(this);
@@ -303,7 +267,6 @@ export default class BaseCampScene extends Phaser.Scene {
         this.speakerNameEl = document.getElementById('speaker-name');
         this.dialogueTextEl = document.getElementById('dialogue-text');
 
-        // 청소 팝업 버튼 이벤트
         if (this.cleanModal) {
             document.getElementById('clean-yes-btn').onclick = (e) => {
                 e.stopPropagation();
@@ -318,7 +281,6 @@ export default class BaseCampScene extends Phaser.Scene {
             };
         }
 
-        // F키(portalKeyHandler) 로직을 통합형으로 교체!
         this.uiKeyHandler = (e) => {
             if (e.code === 'KeyF' || e.key === 'f' || e.key === 'F' || e.key === 'ㄹ') {
                 if (this.portalModal && !this.portalModal.classList.contains('hidden')) {
@@ -388,20 +350,24 @@ export default class BaseCampScene extends Phaser.Scene {
         if (dictBackBtn) dictBackBtn.onclick = (e) => { e.stopPropagation(); this.showDictList(); };
 
         const closeDeskBtn = document.getElementById('close-desk-btn');
-        if (closeDeskBtn) closeDeskBtn.onclick = (e) => { e.stopPropagation(); this.deskScreen.classList.add('hidden'); this.hudContainer.classList.remove('hidden'); this.input.keyboard.resetKeys(); this.input.keyboard.enabled = true; };
+        if (closeDeskBtn) closeDeskBtn.onclick = (e) => { 
+            e.stopPropagation(); 
+            this.deskScreen.classList.add('hidden'); 
+            this.hudContainer.classList.remove('hidden'); 
+            this.input.keyboard.resetKeys(); 
+            this.input.keyboard.enabled = true; 
+        };
 
-        // 진화 +/- 버튼 이벤트
         document.querySelectorAll('.upg-btn').forEach((btn) => {
             btn.onclick = (e) => {
                 e.stopPropagation();
                 const type = btn.dataset.type || btn.getAttribute('data-type');
                 const isPlus = btn.classList.contains('plus');
-                console.log('🧬 진화 버튼 클릭:', type, isPlus ? '+' : '-');
                 this.handleUpgradeClick(type, isPlus);
             };
         });
 
-        // 복제기 드래그 앤 드롭
+        // 🌟 복제기 드래그 이벤트 (MaterialField.js가 담당하므로 여기서 버블 관련 로직은 해제만 놔둠)
         for(let i=0; i<2; i++) {
             const dropZone = document.getElementById(`rep-drop-${i}`); 
             const removeRep = document.getElementById(`remove-rep-${i}`);
@@ -409,7 +375,11 @@ export default class BaseCampScene extends Phaser.Scene {
             if (dropZone) {
                 dropZone.addEventListener('dragover', (e) => { if(!dropZone.classList.contains('locked')) { e.preventDefault(); dropZone.classList.add('drag-over'); } });
                 dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
-                dropZone.addEventListener('drop', (e) => { e.preventDefault(); dropZone.classList.remove('drag-over'); if (dropZone.classList.contains('locked')) return; this.insertToReplicator(e.dataTransfer.getData('text/plain'), i); });
+                dropZone.addEventListener('drop', (e) => { 
+                    e.preventDefault(); dropZone.classList.remove('drag-over'); 
+                    if (dropZone.classList.contains('locked')) return; 
+                    this.insertToReplicator(e.dataTransfer.getData('text/plain'), i); 
+                });
             }
         }
 
@@ -425,7 +395,7 @@ export default class BaseCampScene extends Phaser.Scene {
     }
 
     // ==========================================
-    // 🌐 DB에서 게임 데이터 불러오기 & 기본 재료 자동 지급
+    // 🌐 DB에서 게임 데이터 불러오기
     // ==========================================
     async fetchGameDataFromDB() {
         try {
@@ -436,7 +406,7 @@ export default class BaseCampScene extends Phaser.Scene {
             if (data.ok && data.materials) {
                 this.registry.set('dbMaterials', data.materials);
                 this.registry.set('dbMixLookup', data.mix_lookup || {});
-                console.log("✅ [DB 연동 성공] 아이템 목록과 레시피를 가져왔습니다!", data);
+                console.log("✅ [DB 연동 성공] 아이템 목록과 레시피를 가져왔습니다!");
 
                 let isUpdated = false;
                 data.materials.forEach(mat => {
@@ -447,9 +417,7 @@ export default class BaseCampScene extends Phaser.Scene {
                         }
                         if (!this.discoveredWords.includes(mat.name)) {
                             this.discoveredWords.push(mat.name);
-                            if (!this.discoveryOrder.includes(mat.name)) {
-                                this.discoveryOrder.push(mat.name);
-                            }
+                            if (!this.discoveryOrder.includes(mat.name)) this.discoveryOrder.push(mat.name);
                             isUpdated = true;
                         }
                     }
@@ -460,20 +428,18 @@ export default class BaseCampScene extends Phaser.Scene {
                     this.registry.set('discoveredWords', this.discoveredWords);
                     this.registry.set('discoveryOrder', this.discoveryOrder);
                     this.saveGameData();
-                    console.log("🎁 기본 원소(is_base)가 인벤토리 및 도감에 자동 지급되었습니다!");
                 }
             }
         } catch (error) {
-            console.error("❌ [DB 연동 실패] 백엔드 서버 연결 오류:", error);
+            console.error("❌ [DB 연동 실패]", error);
         }
     }
 
-    // 🌟 T키 입력 시 테스트용 재료 10개 채우기
     fillTestMaterialsForHouse() {
         if (this.houseMaterialSubmission && typeof this.houseMaterialSubmission.fillTestMaterials === 'function') {
             this.houseMaterialSubmission.fillTestMaterials();
         } else {
-            const testItems = ['랜덤 피규어', '거북선', '트랄랄레로 트랄랄라', '레오파드 거북', '흙', '바람', '철', '고양이', '도마뱀', '손흥민' ];
+            const testItems = ['서버 랙', '거북선', '해먹', '독 함정 바닥', '미니 냉장고', '폼롤러', '낙엽', '고양이', '마법사 지팡이', '손흥민' ];
             testItems.forEach(item => {
                 this.wordInventory[item] = (this.wordInventory[item] || 0) + 10;
                 this.addDiscoveredWord(item);
@@ -482,7 +448,6 @@ export default class BaseCampScene extends Phaser.Scene {
             if (this.deskScreen && !this.deskScreen.classList.contains('hidden')) {
                 this.renderAlchemyPouch();
             }
-            console.log("🧪 [테스트] 주요 재료가 각 10개씩 충전되고 진화 포인트가 갱신되었습니다!");
         }
     }
 
@@ -513,7 +478,7 @@ export default class BaseCampScene extends Phaser.Scene {
     }
 
     updateReplicatorsTick() {
-        const now = Date.now(); let uiNeedsUpdate = false; 
+        const now = Date.now(); 
         this.replicators.forEach((rep, i) => {
             if (rep.item) {
                 const elapsed = now - rep.lastTick;
@@ -524,8 +489,8 @@ export default class BaseCampScene extends Phaser.Scene {
                     this.addDiscoveredWord(rep.item);
                     rep.lastTick += ticks * this.repTime;
                     this.registry.set('replicators', this.replicators);
-                    uiNeedsUpdate = true;
                     this.saveGameData();
+                    this.renderAlchemyPouch(); // 복제 시 화면 갱신
                 }
                 if (!this.deskScreen.classList.contains('hidden')) { document.getElementById(`rep-bar-${i}`).style.width = `${Math.min(100, ((now - rep.lastTick) / this.repTime) * 100)}%`; }
             } else {
@@ -551,39 +516,22 @@ export default class BaseCampScene extends Phaser.Scene {
         });
     }
 
-    // ==========================================
-    // 🌟 획득 시 파티클 폭발 효과 (에러 방지 완벽판)
-    // ==========================================
     createPickupBurst(x, y, targetColor) {
         let colorVal = 0xffffff; 
-        if (typeof targetColor === 'string') {
-            colorVal = Phaser.Display.Color.HexStringToColor(targetColor).color;
-        } else if (typeof targetColor === 'number') {
-            colorVal = targetColor;
-        }
+        if (typeof targetColor === 'string') colorVal = Phaser.Display.Color.HexStringToColor(targetColor).color;
+        else if (typeof targetColor === 'number') colorVal = targetColor;
 
         this.add.particles(x, y, 'pixel', {
-            tint: colorVal, speed: { min: 50, max: 150 },
-            scale: { start: 1.2, end: 0 }, lifespan: 500,
-            blendMode: 'ADD', duration: 100
+            tint: colorVal, speed: { min: 50, max: 150 }, scale: { start: 1.2, end: 0 }, lifespan: 500, blendMode: 'ADD', duration: 100
         });
     }
 
-    // ==========================================
-    // 🌟 획득 시 머리 위 텍스트 팝업 (에러 방지 완벽판)
-    // ==========================================
     showFloatingText(x, y, message, targetColor) {
         let fillStr = '#ffffff'; 
-        if (typeof targetColor === 'string') {
-            fillStr = targetColor;
-        } else if (typeof targetColor === 'number') {
-            fillStr = '#' + targetColor.toString(16).padStart(6, '0');
-        }
+        if (typeof targetColor === 'string') fillStr = targetColor;
+        else if (typeof targetColor === 'number') fillStr = '#' + targetColor.toString(16).padStart(6, '0');
 
-        const text = this.add.text(x, y - 20, message, {
-            fontSize: '15px', fill: fillStr, fontStyle: 'bold'
-        }).setOrigin(0.5).setStroke('#000000', 3);
-
+        const text = this.add.text(x, y - 20, message, { fontSize: '15px', fill: fillStr, fontStyle: 'bold' }).setOrigin(0.5).setStroke('#000000', 3);
         this.tweens.add({ targets: text, y: y - 60, alpha: 0, duration: 1000, onComplete: () => text.destroy() });
     }
 
@@ -593,9 +541,7 @@ export default class BaseCampScene extends Phaser.Scene {
         this.updateReplicatorsTick();
         this.alchemy?.update();
 
-        if (Phaser.Input.Keyboard.JustDown(this.keys.T)) {
-            this.fillTestMaterialsForHouse();
-        }
+        if (Phaser.Input.Keyboard.JustDown(this.keys.T)) this.fillTestMaterialsForHouse();
 
         if (!this.deskScreen.classList.contains('hidden') || !this.sysMenuModal.classList.contains('hidden') || !this.dictModal.classList.contains('hidden') || !this.upgradeModal.classList.contains('hidden') || (this.portalModal && !this.portalModal.classList.contains('hidden'))) { 
             this.player.body.setVelocity(0, 0); return; 
@@ -609,27 +555,23 @@ export default class BaseCampScene extends Phaser.Scene {
         if (Phaser.Input.Keyboard.JustDown(this.keys.ESC)) this.toggleSystemMenu();
 
         if (Phaser.Input.Keyboard.JustDown(this.keys.F)) {
-            // 바닥에 떨어진 재료 줍기
+            // 바닥 재료 줍기
             this.materials.getChildren().forEach((mat) => {
                 if (mat.active && Phaser.Math.Distance.BetweenPoints(this.player, mat) < 55) {
                     this.wordInventory[mat.name] = (this.wordInventory[mat.name] || 0) + 1;
                     this.registry.set('wordInventory', this.wordInventory);
-                    
-                    if (typeof this.addDiscoveredWord === 'function') {
-                        this.addDiscoveredWord(mat.name);
-                    }
+                    if (typeof this.addDiscoveredWord === 'function') this.addDiscoveredWord(mat.name);
 
                     const effectColor = mat.colorHex || mat.color || '#ffffff';
                     this.createPickupBurst(mat.x, mat.y, effectColor);
                     this.showFloatingText(mat.x, mat.y, `+ ${mat.name}`, effectColor);
 
-                    console.log(`✨ [${mat.name}] 획득!`);
                     mat.destroy(); 
                     this.saveGameData();
                 }
             });
 
-            // 작업대 청소 & 퀘스트 & 상호작용
+            // 작업대
             if (Phaser.Math.Distance.BetweenPoints(this.player, this.workbenchZone) < 80) {
                 if (!this.isWorkbenchCleaned) {
                     this.input.keyboard.resetKeys();
@@ -642,20 +584,18 @@ export default class BaseCampScene extends Phaser.Scene {
                 }   
             }
 
-            // 포탈 팝업 호출
+            // 포탈
             if (Phaser.Math.Distance.BetweenPoints(this.player, this.northPortal) < 80) {
                 this.targetSceneName = 'NorthForestScene';
                 if (this.portalModalDesc) this.portalModalDesc.innerText = "북쪽 지역으로 이동하시겠습니까?";
-                this.input.keyboard.resetKeys();
-                this.input.keyboard.enabled = false;
+                this.input.keyboard.resetKeys(); this.input.keyboard.enabled = false;
                 if (this.portalModal) this.portalModal.classList.remove('hidden');
             }
 
             if (Phaser.Math.Distance.BetweenPoints(this.player, this.camp2CavePortal) < 80) {
                 this.targetSceneName = 'Camp2CaveScene';
                 if (this.portalModalDesc) this.portalModalDesc.innerText = "동굴 지역으로 이동하시겠습니까?";
-                this.input.keyboard.resetKeys();
-                this.input.keyboard.enabled = false;
+                this.input.keyboard.resetKeys(); this.input.keyboard.enabled = false;
                 if (this.portalModal) this.portalModal.classList.remove('hidden');
             }
         }
@@ -706,17 +646,14 @@ export default class BaseCampScene extends Phaser.Scene {
 
         if (slotReq && slotText) {
             if (this.upgrades.slot2) {
-                slotReq.innerText = '해방 완료!';
-                slotReq.style.color = '#32cd32';
-                slotText.innerText = 'ON';
-                slotText.style.color = '#32cd32';
+                slotReq.innerText = '해방 완료!'; slotReq.style.color = '#32cd32';
+                slotText.innerText = 'ON'; slotText.style.color = '#32cd32';
             } else {
                 const hasEnoughWords = this.discoveredWords.length >= 30;
                 const hasEnoughPoints = this.evolutionPoints >= 10;
-                slotReq.innerText = `요구: 도감 30종 (현재 ${this.discoveredWords.length}종) / 10PT (보유 ${this.evolutionPoints}PT)`;
+                slotReq.innerText = `요구: 도감 30종 (현재 ${this.discoveredWords.length}종) / 10PT`;
                 slotReq.style.color = hasEnoughWords && hasEnoughPoints ? '#ffffff' : '#ff4757';
-                slotText.innerText = 'OFF';
-                slotText.style.color = '#aaa';
+                slotText.innerText = 'OFF'; slotText.style.color = '#aaa';
             }
         }
     }
@@ -726,32 +663,16 @@ export default class BaseCampScene extends Phaser.Scene {
         const cost = costs[type];
 
         if (isPlus) {
-            if (this.evolutionPoints < cost) { console.log(`⚠️ 진화 포인트 부족!`); return; }
-            if (type === 'speed') {
-                if (this.upgrades.speed >= 10) return;
-                this.upgrades.speed++; this.evolutionPoints -= cost;
-            } else if (type === 'time') {
-                if (this.upgrades.time >= 10) return;
-                this.upgrades.time++; this.evolutionPoints -= cost;
-            } else if (type === 'yield') {
-                if (this.upgrades.yield >= 3) return;
-                this.upgrades.yield++; this.evolutionPoints -= cost;
-            } else if (type === 'slot2') {
-                if (this.upgrades.slot2 || this.discoveredWords.length < 30) return;
-                this.upgrades.slot2 = true; this.evolutionPoints -= cost;
-            }
+            if (this.evolutionPoints < cost) return;
+            if (type === 'speed' && this.upgrades.speed < 10) { this.upgrades.speed++; this.evolutionPoints -= cost; } 
+            else if (type === 'time' && this.upgrades.time < 10) { this.upgrades.time++; this.evolutionPoints -= cost; } 
+            else if (type === 'yield' && this.upgrades.yield < 3) { this.upgrades.yield++; this.evolutionPoints -= cost; } 
+            else if (type === 'slot2' && !this.upgrades.slot2 && this.discoveredWords.length >= 30) { this.upgrades.slot2 = true; this.evolutionPoints -= cost; }
         } else {
-            if (type === 'speed') {
-                if (this.upgrades.speed <= 0) return;
-                this.upgrades.speed--; this.evolutionPoints += cost;
-            } else if (type === 'time') {
-                if (this.upgrades.time <= 0) return;
-                this.upgrades.time--; this.evolutionPoints += cost;
-            } else if (type === 'yield') {
-                if (this.upgrades.yield <= 0) return;
-                this.upgrades.yield--; this.evolutionPoints += cost;
-            } else if (type === 'slot2') {
-                if (!this.upgrades.slot2) return;
+            if (type === 'speed' && this.upgrades.speed > 0) { this.upgrades.speed--; this.evolutionPoints += cost; } 
+            else if (type === 'time' && this.upgrades.time > 0) { this.upgrades.time--; this.evolutionPoints += cost; } 
+            else if (type === 'yield' && this.upgrades.yield > 0) { this.upgrades.yield--; this.evolutionPoints += cost; } 
+            else if (type === 'slot2' && this.upgrades.slot2) {
                 if (this.replicators[1].item) { alert('2번 슬롯이 가동 중일 때는 초기화할 수 없습니다!'); return; }
                 this.upgrades.slot2 = false; this.evolutionPoints += cost;
             }
@@ -759,8 +680,6 @@ export default class BaseCampScene extends Phaser.Scene {
 
         this.registry.set('upgrades', this.upgrades);
         this.registry.set('evolutionPoints', this.evolutionPoints);
-        console.log(`🧬 진화 포인트: ${this.evolutionPoints}PT`);
-
         this.renderUpgradeUI();
         this.syncReplicatorUI();
         this.saveGameData();
@@ -803,20 +722,16 @@ export default class BaseCampScene extends Phaser.Scene {
         } 
     }
     
+    // 🌟 작업대 오픈 (렌더링을 MaterialField로 위임)
     openAlchemyDesk() { 
-        // 1. 키보드 잠금 및 작업대 UI 열기
         this.input.keyboard.resetKeys(); 
         this.input.keyboard.enabled = false; 
         this.deskScreen.classList.remove('hidden'); 
         this.hudContainer.classList.add('hidden'); 
         
-        // 2. 팀원의 AI 컨트롤러 실행 (하단의 AI 대화창, 집 짓기 폼 등 활성화)
         if (this.alchemy && typeof this.alchemy.open === 'function') {
             this.alchemy.open(); 
         }
-
-        // 3. 🌟 핵심: 팀원 코드가 인벤토리를 단순 텍스트로 덮어버린 것을, 
-        // 우리가 만든 '디자인 + DB 로직이 적용된 버블'로 다시 강제로 덮어씌웁니다!
         this.syncReplicatorUI(); 
         this.renderAlchemyPouch(); 
     }
@@ -844,127 +759,11 @@ export default class BaseCampScene extends Phaser.Scene {
         } 
     }
     
-    // ==========================================
-    // 🌟 인벤토리(마법의 주머니) 렌더링 & 드래그 앤 드롭 합성 로직 (DB 연동 유지)
-    // ==========================================
+    // 🌟 화면 갱신을 MaterialField에 넘김
     renderAlchemyPouch() { 
-        this.pouchContainer.innerHTML = ''; 
-        const searchTerm = document.getElementById('pouch-search')?.value.trim().toLowerCase() || '';
-        const sortType = document.getElementById('pouch-sort')?.value || 'recent';
-        
-        let availableItems = Object.entries(this.wordInventory).filter(([word, count]) => count > 0);
-        if (searchTerm) availableItems = availableItems.filter(([word]) => word.toLowerCase().includes(searchTerm));
-        
-        if (sortType === 'alpha') {
-            availableItems.sort((a, b) => a[0].localeCompare(b[0], 'ko-KR')); 
-        } else if (sortType === 'recent') {
-            availableItems.sort((a, b) => this.discoveryOrder.indexOf(b[0]) - this.discoveryOrder.indexOf(a[0]));
+        if (this.alchemy && this.alchemy.materialField) {
+            this.alchemy.materialField.render();
         }
-
-        availableItems.forEach(([word, count]) => { 
-            const bubble = document.createElement('div'); 
-            bubble.className = 'word-bubble'; 
-            bubble.draggable = true; 
-            bubble.innerHTML = `${word} <span class="item-count">x${count}</span>`; 
-            
-            // 🌟 버블 절대 좌표 지정!
-            if (!this.bubblePositions[word]) {
-                // 처음 얻은 아이템은 주머니 속 10%~80% 구역 랜덤 배치
-                this.bubblePositions[word] = {
-                    left: `${Math.random() * 70 + 10}%`,
-                    top: `${Math.random() * 70 + 10}%`
-                };
-            }
-            bubble.style.position = 'absolute';
-            bubble.style.left = this.bubblePositions[word].left;
-            bubble.style.top = this.bubblePositions[word].top;
-            bubble.addEventListener('dragstart', (e) => e.dataTransfer.setData('text/plain', word)); 
-            bubble.addEventListener('dragover', (e) => { e.preventDefault(); bubble.classList.add('drag-over'); }); 
-            bubble.addEventListener('dragleave', () => bubble.classList.remove('drag-over')); 
-            bubble.addEventListener('dblclick', () => { 
-                if (this.wordInventory[word] > 0) { 
-                    let targetSlot = -1; 
-                    if(!this.replicators[0].item) targetSlot = 0; 
-                    else if(this.upgrades.slot2 && !this.replicators[1].item) targetSlot = 1; 
-                    
-                    if(targetSlot !== -1) this.insertToReplicator(word, targetSlot); 
-                } 
-            }); 
-            // DB 연동 드롭 이벤트
-            bubble.addEventListener('drop', async (e) => { 
-                e.preventDefault(); 
-                bubble.classList.remove('drag-over'); 
-                
-                if (this.isSynthesizing) return; 
-                
-                const draggedWord = e.dataTransfer.getData('text/plain'); 
-                if (draggedWord === word && this.wordInventory[word] < 2) return; 
-                
-                this.isSynthesizing = true; 
-                if(this.loadingLock) this.loadingLock.classList.remove('hidden'); 
-                
-                try { 
-                    this.wordInventory[draggedWord] -= 1; 
-                    this.wordInventory[word] -= 1; 
-                    if (this.wordInventory[draggedWord] <= 0) delete this.wordInventory[draggedWord]; 
-                    if (this.wordInventory[word] <= 0) delete this.wordInventory[word]; 
-                    
-                    this.registry.set('wordInventory', this.wordInventory);
-                    this.renderAlchemyPouch(); 
-                    
-                    await new Promise(resolve => setTimeout(resolve, 500));
-
-                    const mixLookup = this.registry.get('dbMixLookup');
-                    const dbMaterials = this.registry.get('dbMaterials');
-                    let resultWord = null;
-
-                    if (mixLookup && dbMaterials) {
-                        const w1 = draggedWord.trim();
-                        const w2 = word.trim();
-                        
-                        const mat1 = dbMaterials.find(m => m.name === w1);
-                        const mat2 = dbMaterials.find(m => m.name === w2);
-
-                        if (mat1 && mat2) {
-                            const num1 = parseInt(mat1.material_id.replace(/[^0-9]/g, ''), 10);
-                            const num2 = parseInt(mat2.material_id.replace(/[^0-9]/g, ''), 10);
-                            
-                            let idCombo = num1 <= num2 ? `${mat1.material_id}#${mat2.material_id}` : `${mat2.material_id}#${mat1.material_id}`;
-                            const resultData = mixLookup[idCombo];
-                            if (resultData) resultWord = resultData.name; 
-                        }
-                    }
-
-                    if (resultWord) {
-                        this.wordInventory[resultWord] = (this.wordInventory[resultWord] || 0) + 1; 
-                        this.registry.set('wordInventory', this.wordInventory);
-                        this.addDiscoveredWord(resultWord); 
-
-                        if (!this.discoveredRecipes[resultWord]) this.discoveredRecipes[resultWord] = []; 
-                        const sortedRecipe = [draggedWord, word].sort(); 
-                        const exists = this.discoveredRecipes[resultWord].some(r => r[0] === sortedRecipe[0] && r[1] === sortedRecipe[1]); 
-                        if (!exists) {
-                            this.discoveredRecipes[resultWord].push(sortedRecipe); 
-                            this.registry.set('discoveredRecipes', this.discoveredRecipes);
-                        }
-                    } else {
-                        this.wordInventory[draggedWord] = (this.wordInventory[draggedWord] || 0) + 1; 
-                        this.wordInventory[word] = (this.wordInventory[word] || 0) + 1; 
-                        this.registry.set('wordInventory', this.wordInventory);
-                    }
-
-                    this.saveGameData();
-
-                } catch (err) {
-                    console.error("합성 중 에러 발생:", err);
-                } finally { 
-                    this.isSynthesizing = false; 
-                    if(this.loadingLock) this.loadingLock.classList.add('hidden'); 
-                    this.renderAlchemyPouch(); 
-                } 
-            });            
-            this.pouchContainer.appendChild(bubble); 
-        }); 
     }
 
     insertToReplicator(item, slotIdx) { 
@@ -1043,24 +842,16 @@ export default class BaseCampScene extends Phaser.Scene {
             latestState.endingReady = true;
 
             this.registry.set('houseBuildState', latestState);
-
-            console.log('🏠 최종 이미지:', generatedHouse.image_url);
-            console.log('📖 최종 스토리:', generatedHouse.story);
-
             this.scene.start('EndingScene');
         } catch (error) {
             console.error('❌ 집 생성 결과 대기 실패:', error);
-
             this.houseTimeLapseRunning = false;
             const latestState = this.registry.get('houseBuildState');
             latestState.timeLapseStarted = false;
             latestState.requestError = error.message;
 
             this.registry.set('houseBuildState', latestState);
-
-            if (this.input?.keyboard) {
-                this.input.keyboard.enabled = true;
-            }
+            if (this.input?.keyboard) this.input.keyboard.enabled = true;
         }
     }
     
@@ -1069,24 +860,26 @@ export default class BaseCampScene extends Phaser.Scene {
         return ( state?.quest?.active && state.quest.partFound && !state.quest.completed );
     }
     
-    completeLostPartQuestAtWorkbench() {
+completeLostPartQuestAtWorkbench() {
         const state = this.registry.get('houseBuildState');
+        if ( !state?.quest?.active || !state.quest.partFound || state.quest.completed ) return;
 
-        if ( !state?.quest?.active || !state.quest.partFound || state.quest.completed ) { return; }
-
-        console.log('🔧 AI 부품을 작업대에 전달');
-
-        // 1. 퀘스트 완료 처리
         state.quest.active = false;
         state.quest.completed = true;
         state.quest.completedAt = Date.now();
         this.registry.set('houseBuildState', state);
 
-        // 2. HUD 제거 및 조합대 오픈
         this.questManager?.complete();
+        
+        // 🌟 [핵심] 퀘스트 완료 시 화면 좌측 상단 HUD 확실히 숨기기!
+        const questHudBox = document.getElementById('quest-hud-box');
+        if (questHudBox) {
+            questHudBox.classList.add('hidden');
+            questHudBox.style.display = 'none'; // 안전장치
+        }
+
         this.alchemy.open();
 
-        // 3. AI 대사 + 제작 시작 버튼
         this.alchemy.setDialogue(
             '찾아왔군! 이 부품이면 충분해. 집 생성 데이터도 준비됐어. 이제 보금자리 제작을 시작하자.',
             '보금자리 제작 시작',
@@ -1094,20 +887,14 @@ export default class BaseCampScene extends Phaser.Scene {
         );
     }
 
-    // ==========================================
-    // 🎬 대화 & 컷신 로직
-    // ==========================================
     startWorkbenchCutscene() {
         this.input.keyboard.resetKeys();
         this.input.keyboard.enabled = false;
         this.cutsceneContainer.classList.remove('hidden');
         this.hudContainer.classList.add('hidden');
 
-        // 🖼️ 컷신 이미지(StartScene3.png) 띄우기
         const cutsceneImgEl = document.getElementById('cutscene-image');
-        if (cutsceneImgEl) {
-            cutsceneImgEl.style.backgroundImage = "url('assets/images/StartScene3.png')";
-        }
+        if (cutsceneImgEl) cutsceneImgEl.style.backgroundImage = "url('assets/images/StartScene3.png')";
 
         const scripts = [
             { name: "???", text: "더러운 먼지더미에서 꺼내줘서 고맙다냥!" },
@@ -1129,12 +916,7 @@ export default class BaseCampScene extends Phaser.Scene {
             const currentData = scripts[currentStep];
             this.speakerNameEl.innerText = currentData.name;
             this.dialogueTextEl.innerText = currentData.text;
-            
-            if (currentData.name === "나") {
-                this.speakerNameEl.style.color = "#00ffff"; // 주인공
-            } else {
-                this.speakerNameEl.style.color = "#ff00ff"; // NPC
-            }
+            this.speakerNameEl.style.color = currentData.name === "나" ? "#00ffff" : "#ff00ff";
             currentStep++;
         };
 
@@ -1165,41 +947,26 @@ export default class BaseCampScene extends Phaser.Scene {
         this.registry.set('isWorkbenchCleaned', true);
         this.workbenchImg.setTexture('obj_table_clean');
         
-        console.log("🧹 컷신 종료: 작업대 청소 완료 및 저장");
         this.saveGameData();
     }
 
-    endLostPartQuestCutscene() {
-        window.removeEventListener('keydown', this.bottomDialogHandler);
-        const bottomArea = document.querySelector('.alchemy-bottom-area');
-        if (bottomArea) bottomArea.removeEventListener('click', this.bottomDialogHandler);
-        // 🌟 퀘스트 상태 활성화 및 저장
-        const state = this.registry.get('houseBuildState');
-        if (state && state.quest) {
-            state.quest.active = true;
-            state.quest.startedAt = Date.now();
-            this.registry.set('houseBuildState', state);
-        }
-        
-        // HUD에 퀘스트 띄우기 (QuestManager 연동)
-        if (this.questManager && typeof this.questManager.startQuest === 'function') {
-            this.questManager.startQuest('부품 찾기', '북쪽 숲에서 AI 코어의 잃어버린 부품을 찾아오자.');
-        }
-
-        console.log("🛠️ 북쪽 숲 부품 찾기 퀘스트 시작!");
-        this.saveGameData();
-    }
+    // ==========================================
+    // 🎬 대형 AI 오버레이 + 하단 바 포커스 퀘스트 대화
+    // ==========================================
     startBottomAreaScript() {
-        // 1. 화면 윗부분 어둡게, 하단 바 집중!
+        // 1) 즉시 화면 윗부분 어둡게, 하단 바 집중!
         if (this.deskScreen) this.deskScreen.classList.add('focus-mode');
         
-        // 2. 대화 진행할 DOM 요소 가져오기
+        // 2) 어두워진 배경 위로 대형 "잠깐!!!!" 오버레이 즉시 팝업!
+        const interruptOverlay = document.getElementById('ai-interrupt-overlay');
+        if (interruptOverlay) interruptOverlay.classList.remove('hidden');
+
         const dialogueBox = document.getElementById('alchemy-ai-dialogue');
         const speakerName = document.querySelector('.alchemy-ai-name');
-        
-        // 버튼 텍스트 변경
         const actionBtn = document.getElementById('alchemy-ai-action');
-        if (actionBtn) actionBtn.innerText = "다음 (F) ▼";
+        
+        // 연출 중에는 하단 버튼 임시 숨김
+        if (actionBtn) actionBtn.classList.add('hidden');
 
         const scripts = [
             { name: "연금술 냥이", text: "재료는 다 모았는데... 삐빅! 시스템 오류 발생!" },
@@ -1213,12 +980,9 @@ export default class BaseCampScene extends Phaser.Scene {
 
         const showNext = () => {
             if (currentStep >= scripts.length) {
-                // 🌟 대화 종료 시 포커스 끄고 퀘스트 시작
-                this.deskScreen.classList.remove('focus-mode');
-                this.endLostPartQuestCutscene(); // 기존 퀘스트 시작 및 UI 복구 함수 호출
-                
-                // 대화창 초기화
-                if (actionBtn) actionBtn.innerText = "대기 중...";
+                if (this.deskScreen) this.deskScreen.classList.remove('focus-mode');
+                this.endLostPartQuestCutscene(); 
+                if (actionBtn) actionBtn.classList.add('hidden');
                 return;
             }
             
@@ -1232,21 +996,57 @@ export default class BaseCampScene extends Phaser.Scene {
             currentStep++;
         };
 
-        // 첫 대사 출력
-        showNext();
+        // 3) 1.5초 후 "잠깐!!!!" 화면이 사라지면서 자연스럽게 첫 대사 시작
+        setTimeout(() => {
+            if (interruptOverlay) interruptOverlay.classList.add('hidden');
+            if (actionBtn) {
+                actionBtn.classList.remove('hidden');
+                actionBtn.innerText = "다음 (F) ▼";
+            }
+            showNext();
+        }, 1500);
 
-        // 클릭 및 F키로 다음 대사 넘기기 바인딩
         this.bottomDialogHandler = (e) => {
             if (e.type === 'click' || (e.type === 'keydown' && (e.code === 'KeyF' || e.key === 'f' || e.key === 'F'))) {
                 e.preventDefault();
+                // 오버레이가 떠있는 1.5초 동안은 넘기기 방지
+                if (interruptOverlay && !interruptOverlay.classList.contains('hidden')) return;
                 showNext();
             }
         };
         
-        // 이벤트 리스너 등록
         window.addEventListener('keydown', this.bottomDialogHandler);
         const bottomArea = document.querySelector('.alchemy-bottom-area');
         if (bottomArea) bottomArea.addEventListener('click', this.bottomDialogHandler);
     }
-    
+
+    // 🌟 퀘스트 HUD 복구 및 시작
+    endLostPartQuestCutscene() {
+        window.removeEventListener('keydown', this.bottomDialogHandler);
+        const bottomArea = document.querySelector('.alchemy-bottom-area');
+        if (bottomArea) bottomArea.removeEventListener('click', this.bottomDialogHandler);
+
+        // 작업대 닫기
+        if (this.deskScreen) this.deskScreen.classList.add('hidden');
+        if (this.hudContainer) this.hudContainer.classList.remove('hidden');
+
+        const state = this.registry.get('houseBuildState');
+        if (state && state.quest) {
+            state.quest.active = true;
+            state.quest.startedAt = Date.now();
+            this.registry.set('houseBuildState', state);
+        }
+        
+        // 🌟 퀘스트 HUD 활성화 (화면 좌측 상단 표시)
+        const questHudBox = document.getElementById('quest-hud-box');
+        if (questHudBox) questHudBox.classList.remove('hidden');
+
+        if (this.input?.keyboard) {
+            this.input.keyboard.resetKeys();
+            this.input.keyboard.enabled = true;
+        }
+
+        console.log("🛠️ 북쪽 숲 부품 찾기 퀘스트 및 HUD 활성화 완료!");
+        this.saveGameData();
+    }
 }

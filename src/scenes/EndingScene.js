@@ -428,8 +428,8 @@ normalizeImageUrl(url) {
 
     startHouseGeneration() {
         this.aiText.setText(
-            '나무, 돌, 철, 모래...\n' +
-            '그리고 강아지까지?'
+            '음.. 이런 재료로 집을 지어 달라고?\n' +
+            '이상한 녀석이냥...'
         );
 
         this.time.delayedCall(

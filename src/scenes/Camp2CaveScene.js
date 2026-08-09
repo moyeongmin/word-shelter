@@ -16,7 +16,7 @@ export default class Camp2CaveScene extends Phaser.Scene {
         this.upgrades = this.registry.get('upgrades') || { speed: 0 };
     }
 
-    get playerSpeed() { return 170 + (this.upgrades.speed * 9); }
+    get playerSpeed() { return 180 + (this.upgrades.speed * 9); }
 
     create() {
         // 1. 배경 및 맵 설정
