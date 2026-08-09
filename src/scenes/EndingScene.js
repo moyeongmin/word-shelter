@@ -6,58 +6,43 @@ export default class EndingScene extends Phaser.Scene {
     }
 
     init() {
-        // ==========================================
-        // TODO: 추후 정적 영역에서 가져오기
-        // ==========================================
+        this.generatedHouse = this.registry.get('generatedHouse');
 
-        this.endingWords = [
-            '나무',
-            '돌',
-            '철',
-            '모래',
-            '바람',
-            '불',
-            '물',
-            '금',
-            '강아지',
-            '침대'
-        ];
+        console.log('🏠 EndingScene generatedHouse:', this.generatedHouse);
 
-        // TODO: 추후 AI 응답값으로 교체
-        this.endingTitle = '이상하지만 따뜻한 보금자리';
+        if (this.generatedHouse) {
+            this.endingWords = this.generatedHouse.material_names || [];
+            this.endingNumber = this.generatedHouse.ending_number ?? null;
+            this.endingTitle = this.endingNumber !== null ? `ENDING #${this.endingNumber}` : '나만의 보금자리';
+            this.endingDescription = this.generatedHouse.story || '당신이 모은 재료들로 하나뿐인 보금자리가 완성되었습니다.';
+            this.houseImageUrl = this.normalizeImageUrl(this.generatedHouse.image_url);
+        } else {
+            console.warn('⚠️ generatedHouse가 없습니다.');
 
-        this.endingDescription =
-        '가진 것 하나 없이 숲에 도착했던 당신은, 주변에서 하나둘 주워 모은 재료들을 바라보며 결국 이곳에 자신만의 보금자리를 만들기로 결심했습니다.\n\n' +
+            this.endingWords = [];
+            this.endingNumber = null;
+            this.endingTitle = '나만의 보금자리';
+            this.endingDescription = '당신이 모은 재료들로 하나뿐인 보금자리가 완성되었습니다.';
+            this.houseImageUrl = null;
+        }
+    }
 
-        '처음에는 제대로 된 집이 만들어질 거라고 생각하지 못했습니다. 나무는 제각각의 모양이었고, 돌은 너무 무거웠으며, 철은 어디에 써야 할지도 알 수 없었습니다. 손에 들어온 모래와 바람, 불과 물은 집을 짓는 재료라고 부르기조차 조금 애매해 보였습니다.\n\n' +
-
-        '그래도 당신은 가진 것들을 하나씩 사용하기 시작했습니다. 나무와 돌을 쌓아 벽을 만들고, 철을 구부려 어떻게든 구조를 지탱했습니다. 틈 사이에는 모래를 채워 넣었고, 불을 피울 작은 공간도 만들었습니다.\n\n' +
-
-        '어디선가 발견한 금은 꼭 필요한 재료는 아니었지만, 집의 한가운데 가장 눈에 잘 띄는 곳에 장식으로 붙여 두었습니다. 살아남는 데 아무런 도움도 되지 않는 장식이었지만, 이상하게도 그것 하나만으로 이곳이 단순한 피난처가 아니라 당신의 공간처럼 느껴졌습니다.\n\n' +
-
-        '그리고 가장 큰 문제는 강아지였습니다.\n\n' +
-
-        '강아지는 건축 재료가 아니었습니다. 당연한 이야기였습니다. 하지만 지금까지 모은 것들을 전부 사용해 보금자리를 만들어 달라고 했으니, 결국 집 한쪽에는 강아지가 편하게 누울 수 있는 작은 공간까지 만들어졌습니다.\n\n' +
-
-        '침대 역시 멀쩡한 상태는 아니었지만 벽 안쪽에 밀어 넣었습니다. 이제 적어도 차가운 바닥 위에서 몸을 웅크리고 잠들 필요는 없을 것 같습니다.\n\n' +
-
-        '완성된 집은 어디에서나 볼 수 있는 평범한 집과는 꽤 달랐습니다. 지붕은 조금 기울어져 있었고, 벽의 높이도 일정하지 않았습니다. 철 조각이 뜬금없는 곳에서 튀어나와 있었고, 금 장식은 필요 이상으로 반짝였습니다.\n\n' +
-
-        '누군가 이 모습을 본다면 제대로 지어진 집이라고 부르지 않을지도 모릅니다.\n\n' +
-
-        '하지만 세상이 이렇게 되어 버린 뒤 처음으로, 당신에게는 돌아올 장소가 생겼습니다.\n\n' +
-
-        '비가 내리면 피할 수 있고, 밤이 되면 불을 밝힐 수 있으며, 강아지와 함께 누워 잠들 수 있는 작은 공간입니다.\n\n' +
-
-        '완벽하지는 않습니다.\n' +
-        '멋있지도 않습니다.\n' +
-        '그리고 아마 오래 버티지도 못할 겁니다.\n\n' +
-
-        '그래도 적어도 오늘 밤만큼은 길에서 잠들지 않아도 됩니다.\n\n' +
-
-        '당신이 모은 수많은 단어와 재료들은 그렇게 하나의 이상하고도 따뜻한 보금자리가 되었습니다.';
+normalizeImageUrl(url) {
+    if (!url) return null;
+    // 혹시 "[https://...](https://...)" 형태로 들어오는 경우 대응
+    const markdownMatch = url.match(/\((https?:\/\/[^)]+)\)/);
+    if (markdownMatch) return markdownMatch[1];
+    return url;
 }
+    
+    preload() {
+        if (!this.houseImageUrl) return;
 
+        if (!this.textures.exists('generated-house-image')) {
+            console.log('🖼️ 생성 집 이미지 로드:', this.houseImageUrl);
+            this.load.image('generated-house-image', this.houseImageUrl);
+        }
+    }
     create() {
         const { width, height } = this.scale;
 
@@ -688,14 +673,33 @@ createEndingScreen() {
     // 왼쪽 - 집 이미지
     // ==========================================
 
-    const houseContainer =
-        this.createTemporaryHouse(
+    let houseDisplay;
+    let houseTargetScale = 1;
+
+    if (this.houseImageUrl && this.textures.exists('generated-house-image')) {
+        houseDisplay = this.add.image(imageX, contentCenterY, 'generated-house-image');
+
+        const maxImageWidth = imageAreaWidth;
+        const maxImageHeight = contentHeight;
+
+        houseTargetScale = Math.min(
+            maxImageWidth / houseDisplay.width,
+            maxImageHeight / houseDisplay.height
+        );
+
+        houseDisplay.setScale(houseTargetScale * 0.9);
+        houseDisplay.setAlpha(0);
+
+        console.log('✅ 실제 생성 집 이미지 표시');
+    } else {
+        console.warn('⚠️ 실제 이미지가 없어 임시 집을 사용합니다.');
+
+        houseDisplay = this.createTemporaryHouse(
             imageX,
             contentCenterY
         );
 
-    const houseScale =
-        Phaser.Math.Clamp(
+        houseTargetScale = Phaser.Math.Clamp(
             Math.min(
                 imageAreaWidth / 430,
                 contentHeight / 380
@@ -704,24 +708,15 @@ createEndingScreen() {
             1
         );
 
-    houseContainer
-        .setAlpha(0)
-        .setScale(
-            houseScale * 0.85
-        );
+        houseDisplay.setScale(houseTargetScale * 0.9);
+        houseDisplay.setAlpha(0);
+    }
 
     // ==========================================
     // 오른쪽 - 제목
     // ==========================================
 
-    const titleFontSize =
-        Phaser.Math.Clamp(
-            Math.floor(
-                width * 0.032
-            ),
-            23,
-            34
-        );
+    const titleFontSize = Phaser.Math.Clamp( Math.floor( width * 0.042 ), 30, 44 );
 
     const title =
         this.add.text(
@@ -815,40 +810,17 @@ createEndingScreen() {
 
     const innerPadding = 18;
 
-    const descriptionFontSize =
-        Phaser.Math.Clamp(
-            Math.floor(
-                width * 0.015
-            ),
-            14,
-            17
-        );
+    const descriptionFontSize = Phaser.Math.Clamp( Math.floor( width * 0.019 ), 17, 21 );
 
-    const description =
-        this.add.text(
-            textX + innerPadding,
-            scrollBoxY + innerPadding,
-            this.endingDescription,
+    const description = this.add.text( textX + innerPadding, scrollBoxY + innerPadding, this.endingDescription,
             {
-                fontSize:
-                    `${descriptionFontSize}px`,
-
-                color:
-                    '#d5d5d5',
-
-                align:
-                    'left',
-
-                lineSpacing: 8,
-
+                fontSize: `${descriptionFontSize}px`,
+                color: '#d5d5d5',
+                align: 'left',
+                lineSpacing: 11,
                 wordWrap: {
-                    width:
-                        textAreaWidth -
-                        innerPadding * 2 -
-                        12,
-
-                    useAdvancedWrap:
-                        true
+                    width: textAreaWidth - innerPadding * 2 - 12,
+                    useAdvancedWrap: true
                 }
             }
         )
@@ -1133,25 +1105,22 @@ createEndingScreen() {
     // 등장 연출
     // ==========================================
 
+    const targetScaleX = houseDisplay.scaleX;
+    const targetScaleY = houseDisplay.scaleY;
+
+    houseDisplay.setScale(
+        targetScaleX * 0.9,
+        targetScaleY * 0.9
+    );
+
     this.tweens.add({
-        targets:
-            houseContainer,
-
+        targets: houseDisplay,
         alpha: 1,
-
-        scaleX:
-            houseScale,
-
-        scaleY:
-            houseScale,
-
-        duration:
-            1200,
-
-        ease:
-            'Sine.easeOut'
+        scaleX: houseTargetScale,
+        scaleY: houseTargetScale,
+        duration: 1200,
+        ease: 'Sine.easeOut'
     });
-
     this.time.delayedCall(
         400,
         () => {
@@ -1418,63 +1387,38 @@ createEndingScreen() {
     // ==============================================
 
     createEndingButtons() {
-        const {
-            width,
-            height
-        } = this.scale;
+        const { width, height } = this.scale;
 
-        // 화면 아래쪽에 충분한 여백을 두고 배치
-        const buttonY =
-            height - 42;
+        const buttonY = height - 42;
+        const buttonGap = Math.min(110, width * 0.12);
 
-        const buttonGap =
-            Math.min(
-                110,
-                width * 0.12
-            );
+        const galleryButton = this.createButton(
+            width / 2 - buttonGap,
+            buttonY,
+            '갤러리 보기',
+            () => {
+                this.goToGallery();
+            }
+        );
 
-        const shareButton =
-            this.createButton(
-                width / 2 -
-                    buttonGap,
+        const menuButton = this.createButton(
+            width / 2 + buttonGap,
+            buttonY,
+            '메인 메뉴',
+            () => {
+                this.returnToMainMenu();
+            }
+        );
 
-                buttonY,
-
-                '공유하기',
-
-                () => {
-                    this.shareEnding();
-                }
-            );
-
-        const menuButton =
-            this.createButton(
-                width / 2 +
-                    buttonGap,
-
-                buttonY,
-
-                '메인 메뉴',
-
-                () => {
-                    this.returnToMainMenu();
-                }
-            );
-
-        shareButton
-            .setAlpha(0);
-
-        menuButton
-            .setAlpha(0);
+        galleryButton.setAlpha(0);
+        menuButton.setAlpha(0);
 
         this.tweens.add({
             targets: [
-                shareButton,
+                galleryButton,
                 menuButton
             ],
-
             alpha: 1,
-
             duration: 500
         });
     }
@@ -1647,40 +1591,35 @@ createEndingScreen() {
                 message,
 
                 {
-                    fontSize:
-                        '15px',
+                    fontSize: '15px',
 
-                    color:
-                        '#ffffff',
+                    color: '#ffffff',
 
-                    backgroundColor:
-                        '#000000',
+                    backgroundColor: '#000000',
 
-                    padding: {
-                        x: 12,
-                        y: 7
-                    }
+                    padding: { x: 12, y: 7 }
                 }
             )
                 .setOrigin(0.5)
                 .setDepth(1000);
-
         this.tweens.add({
             targets: toast,
-
             alpha: 0,
-
-            y:
-                toast.y -
-                20,
-
+            y: toast.y - 20,
             delay: 1200,
-
             duration: 500,
-
             onComplete: () => {
                 toast.destroy();
             }
         });
+    }
+    goToGallery() {
+        const houseId = this.generatedHouse?.house_id;
+        const url = new URL('/gallery', window.location.origin);
+        if (houseId) {
+            url.searchParams.set('house', houseId);
+        }
+        console.log('🖼️ 갤러리 이동:', url.toString());
+        window.location.href = url.toString();
     }
 }
