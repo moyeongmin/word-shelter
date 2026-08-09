@@ -313,6 +313,8 @@ export default class NorthForestScene extends Phaser.Scene {
             sandZoneX,
             sandZoneY
         );
+        //퀘스트용 부품 생성
+        this.spawnLostAiPart();
     }
 
     // ==========================================
@@ -1306,6 +1308,39 @@ export default class NorthForestScene extends Phaser.Scene {
                 this.keys.F
             )
         ) {
+            // 퀘스트 부품 획득 상호작용
+            if (
+            this.lostAiPart?.active &&
+            Phaser.Math.Distance.BetweenPoints(
+                this.player,
+                this.lostAiPart
+            ) < 55
+        ) {
+            const state = this.registry.get('houseBuildState');
+
+            if (state?.quest?.active && !state.quest.partFound) {
+                state.quest.partFound = true;
+
+                this.registry.set('houseBuildState', state);
+
+                console.log('🔧 NorthForest에서 AI 구동 부품 획득');
+
+                this.lostAiPart.destroy();
+
+                const questHud = document.getElementById('quest-hud');
+
+                if (questHud) {
+                    questHud.innerHTML = `
+                        <div class="quest-hud-type">EMERGENCY QUEST</div>
+                        <div class="quest-hud-title">잃어버린 AI 구동 부품</div>
+                        <div class="quest-hud-description">
+                            부품을 찾았다! BaseCamp의 AI에게 돌아가자.
+                        </div>
+                        <div class="quest-hud-time">✓ 부품 획득 완료</div>
+                    `;
+                }
+            }
+        }
             // ======================================
             // 1. 재료 줍기
             // ======================================
@@ -1412,5 +1447,68 @@ export default class NorthForestScene extends Phaser.Scene {
                 );
             }
         }
+    }
+
+    //퀘스트용 부품 생성 함수
+    spawnLostAiPart() {
+        const state = this.registry.get('houseBuildState');
+
+        if (
+            !state?.quest?.active ||
+            state.quest.completed ||
+            state.quest.partFound
+        ) {
+            return;
+        }
+
+        // ==========================================
+        // TODO: 추후 실제 AI 부품 이미지로 교체
+        // ==========================================
+        if (!this.textures.exists('item_ai_core_temp')) {
+            const g = this.make.graphics({ x: 0, y: 0, add: false });
+
+            g.fillStyle(0x263238, 1);
+            g.fillRoundedRect(4, 8, 40, 32, 5);
+
+            g.fillStyle(0x00ffcc, 1);
+            g.fillCircle(24, 24, 9);
+
+            g.fillStyle(0xffffff, 1);
+            g.fillCircle(21, 21, 3);
+
+            g.fillStyle(0x78909c, 1);
+            g.fillRect(0, 17, 7, 14);
+            g.fillRect(41, 17, 7, 14);
+
+            g.generateTexture('item_ai_core_temp', 48, 48);
+            g.destroy();
+        }
+
+        // ==========================================
+        // NorthForest 북쪽
+        //
+        // TODO: 실제 맵 크기에 맞춰 x 좌표만 조정
+        // y는 북쪽이므로 작은 값
+        // ==========================================
+        const bg = this.children.getByName?.('background');
+
+        const worldWidth = this.physics.world.bounds.width;
+
+        this.lostAiPart = this.physics.add.sprite(
+            worldWidth / 2,
+            90,
+            'item_ai_core_temp'
+        );
+
+        this.lostAiPart.setScale(0.9);
+
+        this.tweens.add({
+            targets: this.lostAiPart,
+            y: this.lostAiPart.y - 8,
+            duration: 900,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.easeInOut'
+        });
     }
 }

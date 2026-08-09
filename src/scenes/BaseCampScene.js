@@ -1,5 +1,10 @@
 import Phaser from 'phaser';
 import { combineWords } from '../api/db.js';
+import AlchemyController from '../features/alchemy/AlchemyController.js';
+import LostPartQuest from '../features/quest/LostPartQuest.js';
+import TimeLapseSequence from '../features/ending/TimeLapseSequence.js';
+import HouseMaterialSubmission from '../features/alchemy/HouseMaterialSubmission.js';
+import QuestManager from '../features/quest/QuestManager';
 
 export default class BaseCampScene extends Phaser.Scene {
     constructor() {
@@ -42,6 +47,24 @@ export default class BaseCampScene extends Phaser.Scene {
     // 🌟 2. 뚫리지 않는 로컬 스토리지 불러오기
     init(data) {
         if (data && data.spawnFrom) this.spawnFrom = data.spawnFrom; 
+        if (!this.registry.get('houseBuildState')) {
+            this.registry.set('houseBuildState', {
+                submitted: false,
+                requestStarted: false,
+                requestCompleted: false,
+
+                quest: {
+                    active: false,
+                    completed: false,
+                    startedAt: null,
+                    partFound: false,
+                    partDelivered: false
+                },
+
+                timeLapseStarted: false,
+                endingReady: false
+            });
+        }
 
         const savedDataString = localStorage.getItem('cyberAlchemySave');
         
@@ -63,36 +86,63 @@ export default class BaseCampScene extends Phaser.Scene {
         } else if (!this.registry.get('isInitialized')) {
             console.log("🆕 세이브 파일 없음. 새 게임을 시작합니다.");
             this.registry.set('wordInventory', {});
-            this.registry.set('discoveredWords', []); 
+            this.registry.set('discoveredWords', ['불', '물', '나무', '돌', '흙']);
             this.registry.set('discoveredRecipes', {});
             this.registry.set('replicators', [{ item: null, lastTick: 0 }, { item: null, lastTick: 0 }]);
             this.registry.set('upgrades', { speed: 0, time: 0, yield: 0, slot2: false });
-            this.registry.set('discoveryOrder', []); 
+            this.registry.set('discoveryOrder', ['불', '물', '나무', '돌', '흙']);
+
             this.registry.set('isWorkbenchCleaned', false);
             this.registry.set('isInitialized', true);
         }
+        // ==========================================
+        // 집 건설 진행 상태
+        // 기존 플레이 데이터에도 자동으로 생성
+        // ==========================================
+        const buildState = this.registry.get('houseBuildState');
+        if (buildState?.quest && buildState.quest.partDelivered === undefined) {
+            buildState.quest.partDelivered = false;
+            this.registry.set('houseBuildState', buildState);
+        }
 
-        // 변수 바인딩
+        // 집에 사용할 10개 재료
+        if (!this.registry.get('houseMaterials')) {
+            this.registry.set('houseMaterials', Array(10).fill(null));
+        }
+
+        // AI 집 생성 결과
+        if (this.registry.get('houseGenerationResult') === undefined) {
+            this.registry.set('houseGenerationResult', null);
+        }
         this.wordInventory = this.registry.get('wordInventory');
         this.discoveredWords = this.registry.get('discoveredWords');
         this.discoveredRecipes = this.registry.get('discoveredRecipes');
         this.replicators = this.registry.get('replicators');
         this.upgrades = this.registry.get('upgrades');
         this.discoveryOrder = this.registry.get('discoveryOrder');
+        this.evolutionPoints = this.registry.get('evolutionPoints') ?? 0;
         this.isWorkbenchCleaned = this.registry.get('isWorkbenchCleaned');
     }
 
-    addDiscoveredWord(word) { 
-        if (!this.discoveredWords.includes(word)) { 
-            this.discoveredWords.push(word); 
+    addDiscoveredWord(word) {
+        if (!this.discoveredWords.includes(word)) {
+            this.discoveredWords.push(word);
             this.discoveryOrder.push(word);
+
+            // 새 재료 최초 발견 시 진화 포인트 +1
+            this.evolutionPoints += 1;
+
             this.registry.set('discoveredWords', this.discoveredWords);
             this.registry.set('discoveryOrder', this.discoveryOrder);
-            this.saveGameData(); 
-        } 
+            this.registry.set('evolutionPoints', this.evolutionPoints);
+
+            console.log(`📖 [${word}] 도감 등록! 진화 포인트 +1 (현재 ${this.evolutionPoints}PT)`);
+        }
     }
 
-    get availablePoints() { let spent = (this.upgrades.speed * 1) + (this.upgrades.time * 1) + (this.upgrades.yield * 5); if (this.upgrades.slot2) spent += 10; return this.discoveredWords.length - spent; }
+    get availablePoints() {
+    return this.evolutionPoints ?? 0;
+    }
     get playerSpeed() { return 120 + (this.upgrades.speed * 9); } 
     get repTime() { return 15000 - (this.upgrades.time * 1000); } 
     get repYield() { return 1 + this.upgrades.yield; }
@@ -127,6 +177,15 @@ export default class BaseCampScene extends Phaser.Scene {
         const pondCenterY = bg.height * 0.765;
         this.time.addEvent({ delay: 5000, callback: () => this.spawnMaterialAround(pondCenterX, pondCenterY, 80, 130, '물', 'item_water', 5, Math.PI, Math.PI * 1.5), loop: true });
 
+        // 픽셀 텍스처
+        if (!this.textures.exists('pixel')) { 
+            const g = this.make.graphics({x: 0, y: 0, add: false}); 
+            g.fillStyle(0xffffff, 1); 
+            g.fillRect(0, 0, 4, 4); 
+            g.generateTexture('pixel', 4, 4); 
+        }
+
+        // 스폰 위치 로직
         let startX = bg.width / 2;
         let startY = bg.height - 50; 
         if (this.spawnFrom === 'Camp2Cave') { startX = bg.width - 50; startY = bg.height / 2; } 
@@ -193,7 +252,7 @@ export default class BaseCampScene extends Phaser.Scene {
         this.physics.add.collider(this.player, this.debugBoundaries);
 
         this.cameras.main.startFollow(this.player, true, 0.08, 0.08);
-        this.keys = this.input.keyboard.addKeys('W,A,S,D,F,ESC');
+        this.keys = this.input.keyboard.addKeys('W,A,S,D,F,ESC,T');
 
         // DOM 바인딩
         this.sysMenuModal = document.getElementById('system-menu-modal'); 
@@ -204,6 +263,13 @@ export default class BaseCampScene extends Phaser.Scene {
         this.loadingLock = document.getElementById('alchemy-loading-lock'); 
         this.hudContainer = document.getElementById('hud-container');
 
+        this.questManager = new QuestManager(this);
+        this.questManager.initialize();
+        this.timeLapseSequence = new TimeLapseSequence(this);
+        this.alchemy = new AlchemyController(this, this.questManager, this.timeLapseSequence );
+        this.houseTimeLapseRunning = false;
+
+        // 팝업 모달
         this.portalModal = document.getElementById('portal-confirm-modal');
         this.portalModalDesc = document.getElementById('portal-modal-desc');
         this.targetSceneName = null;
@@ -226,44 +292,94 @@ export default class BaseCampScene extends Phaser.Scene {
             };
         }
 
-        // 🌟 포탈 팝업 F키 자동 클릭 이벤트
-        this.portalKeyHandler = (e) => {
-            if (e.code === 'KeyF' || e.key === 'f' || e.key === 'F' || e.key === 'ㄹ') {
-                if (this.portalModal && !this.portalModal.classList.contains('hidden')) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    document.getElementById('portal-yes-btn').click();
-                }
-            }
-        };
-        window.addEventListener('keydown', this.portalKeyHandler);
-        this.events.once('shutdown', () => { window.removeEventListener('keydown', this.portalKeyHandler); });
-
-        document.getElementById('open-upgrade-btn').onclick = (e) => { e.stopPropagation(); this.openUpgradeUI(); };
-        document.getElementById('close-upgrade-btn').onclick = (e) => { e.stopPropagation(); this.upgradeModal.classList.add('hidden'); this.hudContainer.classList.remove('hidden'); this.input.keyboard.resetKeys(); this.input.keyboard.enabled = true; };
-        document.getElementById('hamburger-btn').onclick = (e) => { e.stopPropagation(); this.toggleSystemMenu(); };
-        document.getElementById('close-system-btn').onclick = (e) => { e.stopPropagation(); this.toggleSystemMenu(); };
-        document.getElementById('open-dict-btn').onclick = (e) => { e.stopPropagation(); this.sysMenuModal.classList.add('hidden'); this.showDictList(); };
-        document.getElementById('close-dict-btn').onclick = (e) => { e.stopPropagation(); this.dictModal.classList.add('hidden'); this.hudContainer.classList.remove('hidden'); this.input.keyboard.resetKeys(); this.input.keyboard.enabled = true; };
-        document.getElementById('dict-back-btn').onclick = (e) => { e.stopPropagation(); this.showDictList(); };
-        document.getElementById('close-desk-btn').onclick = (e) => { e.stopPropagation(); this.deskScreen.classList.add('hidden'); this.hudContainer.classList.remove('hidden'); this.input.keyboard.resetKeys(); this.input.keyboard.enabled = true; };
+        const openUpgradeBtn = document.getElementById('open-upgrade-btn');
+        if (openUpgradeBtn) openUpgradeBtn.onclick = (e) => { e.stopPropagation(); this.openUpgradeUI(); };
         
-        document.querySelectorAll('.upg-btn').forEach(btn => { 
-            btn.onclick = (e) => { e.stopPropagation(); this.handleUpgradeClick(e.target.getAttribute('data-type'), e.target.classList.contains('plus')); }; 
+        const closeUpgradeBtn = document.getElementById('close-upgrade-btn');
+        if (closeUpgradeBtn) closeUpgradeBtn.onclick = (e) => { 
+            e.stopPropagation(); 
+            this.upgradeModal.classList.add('hidden');
+            this.hudContainer.classList.remove('hidden');
+            this.input.keyboard.resetKeys(); 
+            this.input.keyboard.enabled = true; 
+        };
+        
+        const hamburgerBtn = document.getElementById('hamburger-btn');
+        if (hamburgerBtn) hamburgerBtn.onclick = (e) => { e.stopPropagation(); this.toggleSystemMenu(); };
+        
+        const closeSystemBtn = document.getElementById('close-system-btn');
+        if (closeSystemBtn) closeSystemBtn.onclick = (e) => { e.stopPropagation(); this.toggleSystemMenu(); };
+        
+        const openDictBtn = document.getElementById('open-dict-btn');
+        if (openDictBtn) openDictBtn.onclick = (e) => { 
+            e.stopPropagation(); 
+            this.sysMenuModal.classList.add('hidden'); 
+            this.showDictList(); 
+        };
+        
+        const closeDictBtn = document.getElementById('close-dict-btn');
+        if (closeDictBtn) closeDictBtn.onclick = (e) => { 
+            e.stopPropagation(); 
+            this.dictModal.classList.add('hidden');
+            this.hudContainer.classList.remove('hidden');
+            this.input.keyboard.resetKeys(); 
+            this.input.keyboard.enabled = true; 
+        };
+        
+        const dictBackBtn = document.getElementById('dict-back-btn');
+        if (dictBackBtn) dictBackBtn.onclick = (e) => { e.stopPropagation(); this.showDictList(); };
+
+        // 진화 +/- 버튼 이벤트
+        document.querySelectorAll('.upg-btn').forEach((btn) => {
+            btn.onclick = (e) => {
+                e.stopPropagation();
+
+                const type = btn.dataset.type;
+                const isPlus = btn.classList.contains('plus');
+
+                console.log('🧬 진화 버튼 클릭:', type, isPlus ? '+' : '-');
+
+                this.handleUpgradeClick(type, isPlus);
+            };
         });
 
         for(let i=0; i<2; i++) {
             const dropZone = document.getElementById(`rep-drop-${i}`); 
-            document.getElementById(`remove-rep-${i}`).onclick = (e) => { e.stopPropagation(); this.removeFromReplicator(i); };
-            dropZone.addEventListener('dragover', (e) => { if(!dropZone.classList.contains('locked')) { e.preventDefault(); dropZone.classList.add('drag-over'); } });
-            dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
-            dropZone.addEventListener('drop', (e) => { e.preventDefault(); dropZone.classList.remove('drag-over'); if (dropZone.classList.contains('locked')) return; this.insertToReplicator(e.dataTransfer.getData('text/plain'), i); });
+            const removeRep = document.getElementById(`remove-rep-${i}`);
+            if (removeRep) removeRep.onclick = (e) => { e.stopPropagation(); this.removeFromReplicator(i); };
+            if (dropZone) {
+                dropZone.addEventListener('dragover', (e) => { if(!dropZone.classList.contains('locked')) { e.preventDefault(); dropZone.classList.add('drag-over'); } });
+                dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+                dropZone.addEventListener('drop', (e) => { e.preventDefault(); dropZone.classList.remove('drag-over'); if (dropZone.classList.contains('locked')) return; this.insertToReplicator(e.dataTransfer.getData('text/plain'), i); });
+            }
         }
 
-        document.getElementById('dict-search').addEventListener('input', () => this.showDictList());
-        document.getElementById('dict-sort').addEventListener('change', () => this.showDictList());
-        document.getElementById('pouch-search').addEventListener('input', () => this.renderAlchemyPouch());
-        document.getElementById('pouch-sort').addEventListener('change', () => this.renderAlchemyPouch());
+        const dictSearch = document.getElementById('dict-search');
+        if (dictSearch) dictSearch.addEventListener('input', () => this.showDictList());
+        
+        const dictSort = document.getElementById('dict-sort');
+        if (dictSort) dictSort.addEventListener('change', () => this.showDictList());
+
+        // 퀘스트 및 연금술
+        this.lostPartQuest = new LostPartQuest(this, { onReturned: () => { this.handleLostPartReturned(); } });
+    }
+
+    // 🌟 T키 입력 시 테스트용 재료 10개 채우기 (도감 등록 및 진화 포인트 확보 포함)
+    fillTestMaterialsForHouse() {
+        if (this.houseMaterialSubmission && typeof this.houseMaterialSubmission.fillTestMaterials === 'function') {
+            this.houseMaterialSubmission.fillTestMaterials();
+        } else {
+            const testItems = ['불', '물', '나무', '돌', '흙'];
+            testItems.forEach(item => {
+                this.wordInventory[item] = (this.wordInventory[item] || 0) + 10;
+                this.addDiscoveredWord(item);
+            });
+            this.syncRegistryReferences();
+            if (this.deskScreen && !this.deskScreen.classList.contains('hidden')) {
+                this.renderAlchemyPouch();
+            }
+            console.log("🧪 [테스트] 주요 재료가 각 10개씩 충전되고 진화 포인트가 갱신되었습니다!");
+        }
     }
 
     spawnMaterialAround(x, y, minRadius, maxRadius, itemName, textureKey, maxLimit, angleMin = 0, angleMax = Math.PI * 2) {
@@ -292,29 +408,6 @@ export default class BaseCampScene extends Phaser.Scene {
         this.materials.add(item);
     }
 
-    updateReplicatorsTick() {
-        const now = Date.now(); let uiNeedsUpdate = false; 
-        this.replicators.forEach((rep, i) => {
-            if (rep.item) {
-                const elapsed = now - rep.lastTick;
-                if (elapsed >= this.repTime) {
-                    const ticks = Math.floor(elapsed / this.repTime);
-                    this.wordInventory[rep.item] = (this.wordInventory[rep.item] || 0) + (this.repYield * ticks);
-                    this.registry.set('wordInventory', this.wordInventory);
-                    this.addDiscoveredWord(rep.item);
-                    rep.lastTick += ticks * this.repTime;
-                    this.registry.set('replicators', this.replicators);
-                    uiNeedsUpdate = true;
-                    this.saveGameData();
-                }
-                if (!this.deskScreen.classList.contains('hidden')) { document.getElementById(`rep-bar-${i}`).style.width = `${Math.min(100, ((now - rep.lastTick) / this.repTime) * 100)}%`; }
-            } else {
-                if (!this.deskScreen.classList.contains('hidden')) document.getElementById(`rep-bar-${i}`).style.width = `0%`;
-            }
-        });
-        if (uiNeedsUpdate && !this.deskScreen.classList.contains('hidden')) this.renderAlchemyPouch();
-    }
-
     updateInteractableOutlines() {
         const targets = [{ img: this.workbenchImg, zone: this.workbenchZone, radius: 80 }, ...this.materials.getChildren().map(mat => ({ img: mat, zone: mat, radius: 50 }))];
         targets.forEach(t => {
@@ -335,7 +428,11 @@ export default class BaseCampScene extends Phaser.Scene {
     update() {
         if (!this.player.active) return;
         this.updateInteractableOutlines();
-        this.updateReplicatorsTick();
+        this.alchemy?.update();
+
+        if (Phaser.Input.Keyboard.JustDown(this.keys.T)) {
+            this.fillTestMaterialsForHouse();
+        }
 
         if (!this.deskScreen.classList.contains('hidden') || !this.sysMenuModal.classList.contains('hidden') || !this.dictModal.classList.contains('hidden') || !this.upgradeModal.classList.contains('hidden') || (this.portalModal && !this.portalModal.classList.contains('hidden'))) { 
             this.player.body.setVelocity(0, 0); return; 
@@ -366,18 +463,25 @@ export default class BaseCampScene extends Phaser.Scene {
                 }
             });
 
-            // 작업대 청소 & 상호작용
-            if (Phaser.Math.Distance.BetweenPoints(this.player, this.workbenchZone) < 80) {
-                // 🌟 this.isWorkbenchCleaned 대신 레지스트리 원본을 검사
-                if (!this.registry.get('isWorkbenchCleaned')) {
+            // 작업대 청소 & 연금술 인터페이스 열기
+            if (
+                Phaser.Math.Distance.BetweenPoints(
+                    this.player,
+                    this.workbenchZone
+                ) < 80
+            ) {
+                if (!this.isWorkbenchCleaned) {
                     this.isWorkbenchCleaned = true;
                     this.registry.set('isWorkbenchCleaned', true);
                     this.workbenchImg.setTexture('obj_table_clean');
-                    console.log("🧹 작업대 청소 완료 및 저장");
-                    this.saveGameData();
+
+                    console.log('작업대 청소 완료!');
+                } else if (this.canCompleteLostPartQuest()) {
+                    // 부품을 찾은 상태에서 작업대와 상호작용
+                    this.completeLostPartQuestAtWorkbench();
                 } else {
-                    this.openAlchemyDesk();
-                }   
+                    this.alchemy.open();
+                }
             }
 
             // 포탈 팝업 호출
@@ -407,31 +511,200 @@ export default class BaseCampScene extends Phaser.Scene {
 
     openUpgradeUI() { this.input.keyboard.resetKeys(); this.input.keyboard.enabled = false; this.upgradeModal.classList.remove('hidden'); this.hudContainer.classList.add('hidden'); this.renderUpgradeUI(); }
     
-    renderUpgradeUI() { 
-        document.getElementById('available-points').innerText = this.availablePoints; 
-        document.getElementById('upg-lv-speed').innerText = `Lv.${this.upgrades.speed}`; 
-        document.getElementById('upg-lv-time').innerText = `Lv.${this.upgrades.time}`; 
-        document.getElementById('upg-lv-yield').innerText = `Lv.${this.upgrades.yield}`; 
-        const slotReq = document.getElementById('upg-slot2-req'); const slotText = document.getElementById('upg-lv-slot2'); 
-        if (this.upgrades.slot2) { slotReq.innerText = "해방 완료!"; slotReq.style.color = "#32cd32"; slotText.innerText = "ON"; slotText.style.color = "#32cd32"; } 
-        else { slotReq.innerText = `요구: 도감 30종 (현재 ${this.discoveredWords.length}종) / 필요 10PT`; slotReq.style.color = this.discoveredWords.length >= 30 ? "#fff" : "#ff4757"; slotText.innerText = "OFF"; slotText.style.color = "#aaa"; } 
+    renderUpgradeUI() {
+        // 현재 진화 포인트
+        const ptsEl = document.getElementById('available-points');
+        if (ptsEl) ptsEl.innerText = `${this.evolutionPoints} PT`;
+
+        // 현재 레벨 표시
+        const speedLv = document.getElementById('upg-lv-speed');
+        const timeLv = document.getElementById('upg-lv-time');
+        const yieldLv = document.getElementById('upg-lv-yield');
+
+        if (speedLv) speedLv.innerText = `Lv.${this.upgrades.speed}`;
+        if (timeLv) timeLv.innerText = `Lv.${this.upgrades.time}`;
+        if (yieldLv) yieldLv.innerText = `Lv.${this.upgrades.yield}`;
+
+        // ==========================================
+        // + 버튼 상태
+        // ==========================================
+
+        const speedPlus = document.getElementById('btn-speed-plus') || document.getElementById('upg-speed-plus');
+        const timePlus = document.getElementById('btn-time-plus') || document.getElementById('upg-time-plus');
+        const yieldPlus = document.getElementById('btn-yield-plus') || document.getElementById('upg-yield-plus');
+        const slot2Plus = document.getElementById('btn-slot2-plus') || document.getElementById('upg-slot2-plus');
+
+        if (speedPlus) {
+            speedPlus.disabled = this.upgrades.speed >= 10 || this.evolutionPoints < 1;
+        }
+
+        if (timePlus) {
+            timePlus.disabled = this.upgrades.time >= 10 || this.evolutionPoints < 1;
+        }
+
+        if (yieldPlus) {
+            yieldPlus.disabled = this.upgrades.yield >= 3 || this.evolutionPoints < 5;
+        }
+
+        if (slot2Plus) {
+            slot2Plus.disabled =
+                this.upgrades.slot2 ||
+                this.discoveredWords.length < 30 ||
+                this.evolutionPoints < 10;
+        }
+
+        // ==========================================
+        // - 버튼 상태
+        // ==========================================
+
+        const speedMinus = document.getElementById('btn-speed-minus') || document.getElementById('upg-speed-minus');
+        const timeMinus = document.getElementById('btn-time-minus') || document.getElementById('upg-time-minus');
+        const yieldMinus = document.getElementById('btn-yield-minus') || document.getElementById('upg-yield-minus');
+        const slot2Minus = document.getElementById('btn-slot2-minus') || document.getElementById('upg-slot2-minus');
+
+        if (speedMinus) speedMinus.disabled = this.upgrades.speed <= 0;
+        if (timeMinus) timeMinus.disabled = this.upgrades.time <= 0;
+        if (yieldMinus) yieldMinus.disabled = this.upgrades.yield <= 0;
+
+        if (slot2Minus) {
+            slot2Minus.disabled =
+                !this.upgrades.slot2 ||
+                !!this.replicators[1]?.item;
+        }
+
+        // ==========================================
+        // 슬롯2 표시
+        // ==========================================
+
+        const slotReq = document.getElementById('upg-slot2-req');
+        const slotText = document.getElementById('upg-lv-slot2');
+
+        if (slotReq && slotText) {
+            if (this.upgrades.slot2) {
+                slotReq.innerText = '해방 완료!';
+                slotReq.style.color = '#32cd32';
+
+                slotText.innerText = 'ON';
+                slotText.style.color = '#32cd32';
+            } else {
+                const hasEnoughWords = this.discoveredWords.length >= 30;
+                const hasEnoughPoints = this.evolutionPoints >= 10;
+
+                slotReq.innerText =
+                    `요구: 도감 30종 (현재 ${this.discoveredWords.length}종) / 10PT (보유 ${this.evolutionPoints}PT)`;
+
+                slotReq.style.color =
+                    hasEnoughWords && hasEnoughPoints
+                        ? '#ffffff'
+                        : '#ff4757';
+
+                slotText.innerText = 'OFF';
+                slotText.style.color = '#aaa';
+            }
+        }
     }
     
-    handleUpgradeClick(type, isPlus) { 
-        if (isPlus) { 
-            if (type === 'speed' && this.upgrades.speed < 10 && this.availablePoints >= 1) this.upgrades.speed++; 
-            if (type === 'time' && this.upgrades.time < 10 && this.availablePoints >= 1) this.upgrades.time++; 
-            if (type === 'yield' && this.upgrades.yield < 3 && this.availablePoints >= 5) this.upgrades.yield++; 
-            if (type === 'slot2' && !this.upgrades.slot2 && this.discoveredWords.length >= 30 && this.availablePoints >= 10) this.upgrades.slot2 = true; 
-        } else { 
-            if (type === 'speed' && this.upgrades.speed > 0) this.upgrades.speed--; 
-            if (type === 'time' && this.upgrades.time > 0) this.upgrades.time--; 
-            if (type === 'yield' && this.upgrades.yield > 0) this.upgrades.yield--; 
-            if (type === 'slot2' && this.upgrades.slot2) { if (this.replicators[1].item) { alert("2번 슬롯이 가동 중일 때는 초기화할 수 없습니다!"); return; } this.upgrades.slot2 = false; } 
-        } 
+    handleUpgradeClick(type, isPlus) {
+        const costs = {
+            speed: 1,
+            time: 1,
+            yield: 5,
+            slot2: 10
+        };
+
+        const cost = costs[type];
+
+        if (isPlus) {
+            if (this.evolutionPoints < cost) {
+                console.log(`⚠️ 진화 포인트 부족! 필요: ${cost}PT / 보유: ${this.evolutionPoints}PT`);
+                return;
+            }
+
+            if (type === 'speed') {
+                if (this.upgrades.speed >= 10) {
+                    console.log('⚠️ 이동 속도는 이미 최대 레벨입니다.');
+                    return;
+                }
+
+                this.upgrades.speed++;
+                this.evolutionPoints -= cost;
+            }
+
+            else if (type === 'time') {
+                if (this.upgrades.time >= 10) {
+                    console.log('⚠️ 복제 시간은 이미 최대 레벨입니다.');
+                    return;
+                }
+
+                this.upgrades.time++;
+                this.evolutionPoints -= cost;
+            }
+
+            else if (type === 'yield') {
+                if (this.upgrades.yield >= 3) {
+                    console.log('⚠️ 복제 생산량은 이미 최대 레벨입니다.');
+                    return;
+                }
+
+                this.upgrades.yield++;
+                this.evolutionPoints -= cost;
+            }
+
+            else if (type === 'slot2') {
+                if (this.upgrades.slot2) return;
+
+                if (this.discoveredWords.length < 30) {
+                    console.log(`⚠️ 도감 30종 필요! 현재 ${this.discoveredWords.length}종`);
+                    return;
+                }
+
+                this.upgrades.slot2 = true;
+                this.evolutionPoints -= cost;
+            }
+        }
+
+        else {
+            if (type === 'speed') {
+                if (this.upgrades.speed <= 0) return;
+
+                this.upgrades.speed--;
+                this.evolutionPoints += cost;
+            }
+
+            else if (type === 'time') {
+                if (this.upgrades.time <= 0) return;
+
+                this.upgrades.time--;
+                this.evolutionPoints += cost;
+            }
+
+            else if (type === 'yield') {
+                if (this.upgrades.yield <= 0) return;
+
+                this.upgrades.yield--;
+                this.evolutionPoints += cost;
+            }
+
+            else if (type === 'slot2') {
+                if (!this.upgrades.slot2) return;
+
+                if (this.replicators[1].item) {
+                    alert('2번 슬롯이 가동 중일 때는 초기화할 수 없습니다!');
+                    return;
+                }
+
+                this.upgrades.slot2 = false;
+                this.evolutionPoints += cost;
+            }
+        }
+
         this.registry.set('upgrades', this.upgrades);
-        this.renderUpgradeUI(); 
-        this.saveGameData();
+        this.registry.set('evolutionPoints', this.evolutionPoints);
+
+        console.log(`🧬 진화 포인트: ${this.evolutionPoints}PT`);
+
+        this.renderUpgradeUI();
+        this.syncReplicatorUI();
     }
 
     showDictList() { 
@@ -451,107 +724,179 @@ export default class BaseCampScene extends Phaser.Scene {
     }
 
     showDictDetail(word) { 
-        document.getElementById('dict-list-view').classList.add('hidden'); document.getElementById('dict-detail-view').classList.remove('hidden'); 
-        document.getElementById('dict-detail-title').innerText = word; const recipeList = document.getElementById('dict-recipe-list'); recipeList.innerHTML = ''; 
+        document.getElementById('dict-list-view').classList.add('hidden'); 
+        document.getElementById('dict-detail-view').classList.remove('hidden'); 
+        document.getElementById('dict-detail-title').innerText = word; 
+        const recipeList = document.getElementById('dict-recipe-list'); 
+        recipeList.innerHTML = ''; 
         const recipes = this.discoveredRecipes[word] || []; 
-        if (recipes.length === 0) { recipeList.innerHTML = '<span style="color:#aaa;">자연에서 얻거나 아직 조합법을 모릅니다.</span>'; } 
-        else { recipes.forEach(recipe => { 
-            const row = document.createElement('div'); row.className = 'recipe-row'; 
-            const m1 = document.createElement('button'); m1.className = 'recipe-mat-btn'; m1.innerText = recipe[0]; m1.onclick = () => this.showDictDetail(recipe[0]); 
-            const plus = document.createElement('span'); plus.innerText = '+'; plus.style.fontWeight = 'bold'; 
-            const m2 = document.createElement('button'); m2.className = 'recipe-mat-btn'; m2.innerText = recipe[1]; m2.onclick = () => this.showDictDetail(recipe[1]); 
-            row.appendChild(m1); row.appendChild(plus); row.appendChild(m2); recipeList.appendChild(row); 
-        }); } 
+        if (recipes.length === 0) { 
+            recipeList.innerHTML = '<span style="color:#aaa;">자연에서 얻거나 아직 조합법을 모릅니다.</span>'; 
+        } else { 
+            recipes.forEach(recipe => { 
+                const row = document.createElement('div'); row.className = 'recipe-row'; 
+                const m1 = document.createElement('button'); m1.className = 'recipe-mat-btn'; m1.innerText = recipe[0]; m1.onclick = () => this.showDictDetail(recipe[0]); 
+                const plus = document.createElement('span'); plus.innerText = '+'; plus.style.fontWeight = 'bold'; 
+                const m2 = document.createElement('button'); m2.className = 'recipe-mat-btn'; m2.innerText = recipe[1]; m2.onclick = () => this.showDictDetail(recipe[1]); 
+                row.appendChild(m1); row.appendChild(plus); row.appendChild(m2); 
+                recipeList.appendChild(row); 
+            }); 
+        } 
     }
-    
-    openAlchemyDesk() { this.input.keyboard.resetKeys(); this.input.keyboard.enabled = false; this.deskScreen.classList.remove('hidden'); this.hudContainer.classList.add('hidden'); this.syncReplicatorUI(); this.renderAlchemyPouch(); }
 
     syncReplicatorUI() { 
         for(let i=0; i<2; i++) { 
-            const dropZone = document.getElementById(`rep-drop-${i}`); const removeBtn = document.getElementById(`remove-rep-${i}`); 
-            if(i === 1 && !this.upgrades.slot2) { dropZone.className = 'replicator-tube locked'; dropZone.innerHTML = `<span>잠김<br>(진화 필요)</span>`; removeBtn.classList.add('hidden'); continue; } 
-            if (this.replicators[i].item) { dropZone.className = 'replicator-tube active'; dropZone.innerHTML = `<span>${this.replicators[i].item}</span>`; removeBtn.classList.remove('hidden'); } 
-            else { dropZone.className = 'replicator-tube empty'; dropZone.innerHTML = `<span>${i+1}번 슬롯<br>드롭</span>`; removeBtn.classList.add('hidden'); } 
+            const dropZone = document.getElementById(`rep-drop-${i}`); 
+            const removeBtn = document.getElementById(`remove-rep-${i}`); 
+            if(!dropZone) continue;
+            if(i === 1 && !this.upgrades.slot2) { 
+                dropZone.className = 'replicator-tube locked'; 
+                dropZone.innerHTML = `<span>잠김<br>(진화 필요)</span>`; 
+                if(removeBtn) removeBtn.classList.add('hidden'); 
+                continue; 
+            } 
+            if (this.replicators[i].item) { 
+                dropZone.className = 'replicator-tube active'; 
+                dropZone.innerHTML = `<span>${this.replicators[i].item}</span>`; 
+                if(removeBtn) removeBtn.classList.remove('hidden'); 
+            } else { 
+                dropZone.className = 'replicator-tube empty'; 
+                dropZone.innerHTML = `<span>${i+1}번 슬롯<br>드롭</span>`; 
+                if(removeBtn) removeBtn.classList.add('hidden'); 
+            } 
         } 
     }
-    
-    renderAlchemyPouch() { 
-        this.pouchContainer.innerHTML = ''; 
-        const searchTerm = document.getElementById('pouch-search').value.trim().toLowerCase();
-        const sortType = document.getElementById('pouch-sort').value;
-        let availableItems = Object.entries(this.wordInventory).filter(([word, count]) => count > 0);
 
-        if (searchTerm) availableItems = availableItems.filter(([word]) => word.toLowerCase().includes(searchTerm));
-        if (sortType === 'alpha') availableItems.sort((a, b) => a[0].localeCompare(b[0], 'ko-KR')); 
-        else if (sortType === 'recent') availableItems.sort((a, b) => this.discoveryOrder.indexOf(b[0]) - this.discoveryOrder.indexOf(a[0]));
+    syncRegistryReferences() {
+        if (this.wordInventory) this.registry.set('wordInventory', this.wordInventory);
+        if (this.discoveredWords) this.registry.set('discoveredWords', this.discoveredWords);
+        if (this.discoveredRecipes) this.registry.set('discoveredRecipes', this.discoveredRecipes);
+        if (this.upgrades) this.registry.set('upgrades', this.upgrades);
+        if (this.discoveryOrder) this.registry.set('discoveryOrder', this.discoveryOrder);
 
-        availableItems.forEach(([word, count]) => { 
-            const bubble = document.createElement('div'); bubble.className = 'word-bubble'; bubble.draggable = true; bubble.innerHTML = `${word} <span class="item-count">x${count}</span>`; 
-            bubble.addEventListener('dragstart', (e) => e.dataTransfer.setData('text/plain', word)); 
-            bubble.addEventListener('dragover', (e) => { e.preventDefault(); bubble.classList.add('drag-over'); }); 
-            bubble.addEventListener('dragleave', () => bubble.classList.remove('drag-over')); 
-            bubble.addEventListener('dblclick', () => { if (this.wordInventory[word] > 0) { let targetSlot = -1; if(!this.replicators[0].item) targetSlot = 0; else if(this.upgrades.slot2 && !this.replicators[1].item) targetSlot = 1; if(targetSlot !== -1) this.insertToReplicator(word, targetSlot); } }); 
-            bubble.addEventListener('drop', async (e) => { 
-                e.preventDefault(); bubble.classList.remove('drag-over'); 
-                if (this.isSynthesizing) return; 
-                const draggedWord = e.dataTransfer.getData('text/plain'); 
-                if (draggedWord === word && this.wordInventory[word] < 2) return; 
-                
-                this.isSynthesizing = true; this.loadingLock.classList.remove('hidden'); 
-                try { 
-                    this.wordInventory[draggedWord] -= 1; this.wordInventory[word] -= 1; 
-                    if (this.wordInventory[draggedWord] <= 0) delete this.wordInventory[draggedWord]; 
-                    if (this.wordInventory[word] <= 0) delete this.wordInventory[word]; 
-                    
-                    this.registry.set('wordInventory', this.wordInventory);
-                    this.renderAlchemyPouch(); 
-                    
-                    const resultWord = await combineWords(draggedWord, word); 
-                    
-                    this.wordInventory[resultWord] = (this.wordInventory[resultWord] || 0) + 1; 
-                    this.registry.set('wordInventory', this.wordInventory);
-                    
-                    this.addDiscoveredWord(resultWord); 
-                    if (!this.discoveredRecipes[resultWord]) this.discoveredRecipes[resultWord] = []; 
-                    const sortedRecipe = [draggedWord, word].sort(); 
-                    const exists = this.discoveredRecipes[resultWord].some(r => r[0] === sortedRecipe[0] && r[1] === sortedRecipe[1]); 
-                    if (!exists) {
-                        this.discoveredRecipes[resultWord].push(sortedRecipe); 
-                        this.registry.set('discoveredRecipes', this.discoveredRecipes);
-                    }
-
-                    this.saveGameData();
-                } finally { 
-                    this.isSynthesizing = false; this.loadingLock.classList.add('hidden'); this.renderAlchemyPouch(); 
-                } 
-            }); 
-            this.pouchContainer.appendChild(bubble); 
-        }); 
+        this.registry.set('evolutionPoints', this.evolutionPoints);
     }
 
-    insertToReplicator(item, slotIdx) { 
-        if (this.replicators[slotIdx].item === item) return; 
-        if (this.replicators[slotIdx].item) this.wordInventory[this.replicators[slotIdx].item] = (this.wordInventory[this.replicators[slotIdx].item] || 0) + 1; 
-        this.wordInventory[item] -= 1; 
-        if (this.wordInventory[item] === 0) delete this.wordInventory[item]; 
-        this.replicators[slotIdx] = { item: item, lastTick: Date.now() }; 
-        
-        this.registry.set('wordInventory', this.wordInventory);
-        this.registry.set('replicators', this.replicators);
-        
-        this.syncReplicatorUI(); this.renderAlchemyPouch(); 
-        this.saveGameData();
+    handleLostPartReturned() {
+        console.log("부품이 반환되었습니다!");
     }
-    
-    removeFromReplicator(slotIdx) { 
-        if (!this.replicators[slotIdx].item) return; 
-        this.wordInventory[this.replicators[slotIdx].item] = (this.wordInventory[this.replicators[slotIdx].item] || 0) + 1; 
-        this.replicators[slotIdx] = { item: null, lastTick: 0 }; 
-        
-        this.registry.set('wordInventory', this.wordInventory);
-        this.registry.set('replicators', this.replicators);
 
-        this.syncReplicatorUI(); this.renderAlchemyPouch(); 
-        this.saveGameData();
+    async startHouseBuildTimeLapse() {
+        if (this.houseTimeLapseRunning) return;
+
+        const state = this.registry.get('houseBuildState');
+
+        if (!state) {
+            console.error('❌ houseBuildState 없음');
+            return;
+        }
+
+        if (!state.quest.completed) {
+            console.warn('❌ 아직 AI 부품 퀘스트가 완료되지 않았습니다.');
+            return;
+        }
+
+        if (state.timeLapseStarted) {
+            console.warn('⚠️ 이미 타임랩스가 시작된 상태입니다.');
+            return;
+        }
+
+        this.houseTimeLapseRunning = true;
+
+        state.timeLapseStarted = true;
+        this.registry.set('houseBuildState', state);
+
+        // 작업대 닫기
+        this.alchemy?.close();
+
+        // HUD 숨김
+        this.hudContainer?.classList.add('hidden');
+
+        // 키보드 차단
+        if (this.input?.keyboard) {
+            this.input.keyboard.resetKeys();
+            this.input.keyboard.enabled = false;
+        }
+
+        console.log('⏳ 보금자리 제작 타임랩스 시작');
+
+        try {
+            await this.timeLapseSequence.play();
+
+            const latestState = this.registry.get('houseBuildState');
+
+            latestState.endingReady = true;
+            this.registry.set('houseBuildState', latestState);
+
+            this.registry.set(
+                'endingMaterials',
+                [...(this.registry.get('houseMaterials') || [])]
+            );
+
+            console.log('🏠 제작 완료 → EndingScene');
+
+            this.scene.start('EndingScene');
+        } catch (error) {
+            console.error('❌ 타임랩스 오류:', error);
+
+            this.houseTimeLapseRunning = false;
+
+            state.timeLapseStarted = false;
+            this.registry.set('houseBuildState', state);
+
+            if (this.input?.keyboard) {
+                this.input.keyboard.enabled = true;
+            }
+        }
+    }
+    canCompleteLostPartQuest() {
+        const state = this.registry.get('houseBuildState');
+
+        return (
+            state?.quest?.active &&
+            state.quest.partFound &&
+            !state.quest.completed
+        );
+    }
+    completeLostPartQuestAtWorkbench() {
+        const state = this.registry.get('houseBuildState');
+
+        if (
+            !state?.quest?.active ||
+            !state.quest.partFound ||
+            state.quest.completed
+        ) {
+            return;
+        }
+
+        console.log('🔧 AI 부품을 작업대에 전달');
+
+        // ==========================================
+        // 1. 퀘스트 완료 처리
+        // ==========================================
+        state.quest.active = false;
+        state.quest.completed = true;
+        state.quest.completedAt = Date.now();
+
+        this.registry.set('houseBuildState', state);
+
+        // HUD 제거
+        this.questManager?.complete();
+
+        // ==========================================
+        // 2. 조합대 열기
+        // ==========================================
+        this.alchemy.open();
+
+        // ==========================================
+        // 3. AI 대사 + 제작 시작 버튼
+        // ==========================================
+        this.alchemy.setDialogue(
+            '찾아왔군! 이 부품이면 충분해. 집 생성 데이터도 준비됐어. 이제 보금자리 제작을 시작하자.',
+            '보금자리 제작 시작',
+            () => {
+                this.startHouseBuildTimeLapse();
+            }
+        );
     }
 }
