@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import StartScene from './scenes/StartScene.js';
 import BaseCampScene from './scenes/BaseCampScene.js';
 import ForestScene from './scenes/ForestScene.js';
-import DesertScene from './scenes/DesertScene.js';
+import NorthForestScene from './scenes/NorthForestScene.js';
 import CaveScene from './scenes/CaveScene.js';
 import Camp2CaveScene from './scenes/Camp2CaveScene.js';
 
@@ -20,7 +20,7 @@ const config = {
         default: 'arcade', 
         arcade: { debug: true } 
     },
-    scene: [StartScene, BaseCampScene, ForestScene, DesertScene, CaveScene, Camp2CaveScene]
+    scene: [StartScene, BaseCampScene, ForestScene, NorthForestScene, CaveScene, Camp2CaveScene]
 };
 
 const game = new Phaser.Game(config);
