@@ -130,32 +130,58 @@ export default class HouseMaterialSubmission {
         if (buildState?.submitted) return;
 
         const inventory = this.scene.registry.get('wordInventory') || {};
+        const currentWord = this.materials[index];
 
-        if (!inventory[word] || inventory[word] <= 0) {
-            console.warn(`❌ ${word} 재료 부족`);
+        // 같은 슬롯에 같은 재료를 다시 넣는 경우 아무것도 하지 않음
+        if (currentWord === word) return;
+
+        // ==========================================
+        // 이미 다른 제출 슬롯에 들어간 재료인지 확인
+        // ==========================================
+        const duplicateIndex = this.materials.findIndex((material, slotIndex) => {
+            return slotIndex !== index && material === word;
+        });
+
+        if (duplicateIndex !== -1) {
+            console.warn(`⚠️ [${word}]은 이미 ${duplicateIndex + 1}번 슬롯에 들어가 있습니다.`);
+
+            if (this.ui?.setDialogue) {
+                this.ui.setDialogue(`"${word}"은 이미 제출 목록에 있어. 서로 다른 10개의 재료가 필요해.`);
+            }
+
             return;
         }
 
-        const oldWord = this.materials[index];
+        // 실제 인벤토리에 해당 재료가 있는지 확인
+        if (!inventory[word] || inventory[word] <= 0) {
+            console.warn(`❌ [${word}] 재료가 부족합니다.`);
 
-        // 기존 슬롯 재료 반환
-        if (oldWord) {
-            inventory[oldWord] = (inventory[oldWord] || 0) + 1;
+            if (this.ui?.setDialogue) {
+                this.ui.setDialogue(`"${word}" 재료가 부족해.`);
+            }
+
+            return;
         }
 
-        // 새 재료 소비
+        // 기존 슬롯에 다른 재료가 있었다면 먼저 반환
+        if (currentWord) {
+            inventory[currentWord] = (inventory[currentWord] || 0) + 1;
+        }
+
+        // 새 재료 1개 소비
         inventory[word] -= 1;
 
         if (inventory[word] <= 0) {
             delete inventory[word];
         }
 
+        // 슬롯에 저장
         this.materials[index] = word;
 
         this.scene.registry.set('wordInventory', inventory);
         this.scene.registry.set('houseMaterials', this.materials);
 
-        // 기존 인벤토리 UI 갱신
+        // 인벤토리 UI 갱신
         if (typeof this.scene.renderAlchemyPouch === 'function') {
             this.scene.wordInventory = inventory;
             this.scene.renderAlchemyPouch();
@@ -164,6 +190,8 @@ export default class HouseMaterialSubmission {
         }
 
         this.render();
+
+        console.log(`🏠 제출 슬롯 ${index + 1}: ${word}`);
     }
 
     remove(index) {
@@ -234,25 +262,34 @@ export default class HouseMaterialSubmission {
 
         // 버튼 즉시 잠금
         this.render();
+        const initials = this.scene.registry.get('playerInitials') || 'WS';
+        const comboCount = this.scene.registry.get('comboCount') || 0;
 
-        // ==========================================
-        // 2. TODO - 실제 집 생성 API
-        // 제출 누르는 순간 요청 시작
-        // ==========================================
-        requestHouseGeneration(submittedMaterials)
-            .then((result) => {
-                const latestState = this.scene.registry.get('houseBuildState');
+        requestHouseGeneration(submittedMaterials, {
+            initials,
+            comboCount
+        }).then((result) => {
+        const latestState = this.scene.registry.get('houseBuildState');
 
-                latestState.requestCompleted = true;
+        latestState.requestCompleted = true;
+        latestState.houseId = result.house_id;
 
-                this.scene.registry.set('houseBuildState', latestState);
-                this.scene.registry.set('houseGenerationResult', result);
+        this.scene.registry.set('houseBuildState', latestState);
+        this.scene.registry.set('houseGenerationResult', result);
 
-                console.log('🏠 집 생성 API 완료:', result);
-            })
-            .catch((error) => {
-                console.warn('⚠️ 집 생성 API 요청 실패:', error);
-            });
+        console.log('🏠 집 생성 요청 완료:', result);
+        console.log('🏠 house_id:', result.house_id);
+        })
+        .catch((error) => {
+            const latestState = this.scene.registry.get('houseBuildState');
+
+            latestState.requestCompleted = false;
+            latestState.requestError = error.message;
+
+            this.scene.registry.set('houseBuildState', latestState);
+
+            console.warn('⚠️ 집 생성 API 요청 실패:', error);
+        });
 
         // ==========================================
         // 3. 퀘스트 HUD 표시

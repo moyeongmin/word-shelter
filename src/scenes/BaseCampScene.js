@@ -5,6 +5,7 @@ import LostPartQuest from '../features/quest/LostPartQuest.js';
 import TimeLapseSequence from '../features/ending/TimeLapseSequence.js';
 import HouseMaterialSubmission from '../features/alchemy/HouseMaterialSubmission.js';
 import QuestManager from '../features/quest/QuestManager';
+import { waitForHouseGeneration } from '../api/houseGeneration';
 
 export default class BaseCampScene extends Phaser.Scene {
     constructor() {
@@ -369,7 +370,7 @@ export default class BaseCampScene extends Phaser.Scene {
         if (this.houseMaterialSubmission && typeof this.houseMaterialSubmission.fillTestMaterials === 'function') {
             this.houseMaterialSubmission.fillTestMaterials();
         } else {
-            const testItems = ['불', '물', '나무', '돌', '흙'];
+            const testItems = ['랜덤 피규어', '거북선', '트랄랄레로 트랄랄라', '레오파드 거북', '흙', '바람', '철', '고양이', '도마뱀', '손흥민' ];
             testItems.forEach(item => {
                 this.wordInventory[item] = (this.wordInventory[item] || 0) + 10;
                 this.addDiscoveredWord(item);
@@ -785,64 +786,54 @@ export default class BaseCampScene extends Phaser.Scene {
         if (this.houseTimeLapseRunning) return;
 
         const state = this.registry.get('houseBuildState');
+        if (!state?.quest?.completed) return;
 
-        if (!state) {
-            console.error('❌ houseBuildState 없음');
-            return;
-        }
+        const houseId = state.houseId;
 
-        if (!state.quest.completed) {
-            console.warn('❌ 아직 AI 부품 퀘스트가 완료되지 않았습니다.');
-            return;
-        }
-
-        if (state.timeLapseStarted) {
-            console.warn('⚠️ 이미 타임랩스가 시작된 상태입니다.');
+        if (!houseId) {
+            console.warn('❌ houseId가 아직 없습니다.');
             return;
         }
 
         this.houseTimeLapseRunning = true;
-
         state.timeLapseStarted = true;
         this.registry.set('houseBuildState', state);
 
-        // 작업대 닫기
         this.alchemy?.close();
-
-        // HUD 숨김
         this.hudContainer?.classList.add('hidden');
 
-        // 키보드 차단
         if (this.input?.keyboard) {
             this.input.keyboard.resetKeys();
             this.input.keyboard.enabled = false;
         }
 
-        console.log('⏳ 보금자리 제작 타임랩스 시작');
-
         try {
-            await this.timeLapseSequence.play();
+            const [, generatedHouse] = await Promise.all([
+                this.timeLapseSequence.play(),
+                waitForHouseGeneration(houseId)
+            ]);
+
+            this.registry.set('generatedHouse', generatedHouse);
 
             const latestState = this.registry.get('houseBuildState');
-
             latestState.endingReady = true;
+
             this.registry.set('houseBuildState', latestState);
 
-            this.registry.set(
-                'endingMaterials',
-                [...(this.registry.get('houseMaterials') || [])]
-            );
-
-            console.log('🏠 제작 완료 → EndingScene');
+            console.log('🏠 최종 이미지:', generatedHouse.image_url);
+            console.log('📖 최종 스토리:', generatedHouse.story);
 
             this.scene.start('EndingScene');
         } catch (error) {
-            console.error('❌ 타임랩스 오류:', error);
+            console.error('❌ 집 생성 결과 대기 실패:', error);
 
             this.houseTimeLapseRunning = false;
 
-            state.timeLapseStarted = false;
-            this.registry.set('houseBuildState', state);
+            const latestState = this.registry.get('houseBuildState');
+            latestState.timeLapseStarted = false;
+            latestState.requestError = error.message;
+
+            this.registry.set('houseBuildState', latestState);
 
             if (this.input?.keyboard) {
                 this.input.keyboard.enabled = true;

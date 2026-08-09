@@ -5,6 +5,7 @@ import ForestScene from './scenes/ForestScene.js';
 import NorthForestScene from './scenes/NorthForestScene.js';
 import CaveScene from './scenes/CaveScene.js';
 import Camp2CaveScene from './scenes/Camp2CaveScene.js';
+import EndingScene from './scenes/EndingScene.js';
 
 import './ui/style.css';
 
@@ -23,7 +24,7 @@ const config = {
             debug: false,
         }
     },
-    scene: [StartScene, BaseCampScene, ForestScene, NorthForestScene, CaveScene, Camp2CaveScene]
+    scene: [StartScene, BaseCampScene, ForestScene, NorthForestScene, CaveScene, Camp2CaveScene, EndingScene]
 };
 
 const game = new Phaser.Game(config);
