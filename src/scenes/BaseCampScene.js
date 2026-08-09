@@ -99,6 +99,8 @@ export default class BaseCampScene extends Phaser.Scene {
 
     create() {
 
+        this.fetchGameDataFromDB();
+
         if (!this.textures.exists('pixel')) {
             const g = this.make.graphics({x: 0, y: 0, add: false});
             g.fillStyle(0xffffff, 1);
@@ -271,6 +273,62 @@ export default class BaseCampScene extends Phaser.Scene {
         document.getElementById('dict-sort').addEventListener('change', () => this.showDictList());
         document.getElementById('pouch-search').addEventListener('input', () => this.renderAlchemyPouch());
         document.getElementById('pouch-sort').addEventListener('change', () => this.renderAlchemyPouch());
+    }
+
+    // ==========================================
+    // 🌐 DB에서 게임 데이터 불러오기 (임시)
+    // ==========================================
+// ==========================================
+    // 🌐 DB에서 게임 데이터 불러오기 & 기본 재료 자동 지급
+    // ==========================================
+    async fetchGameDataFromDB() {
+        try {
+            const apiUrl = 'https://ls4bj14ryk.execute-api.ap-northeast-2.amazonaws.com/api/v1/game-data'; 
+            
+            const response = await fetch(apiUrl);
+            const data = await response.json();
+
+            if (data.ok && data.materials) {
+                // 1. DB 데이터를 전역 저장소(Registry)에 세팅
+                this.registry.set('dbMaterials', data.materials);
+                this.registry.set('dbMixLookup', data.mix_lookup || {});
+                
+                console.log("✅ [DB 연동 성공] 아이템 목록과 레시피를 가져왔습니다!", data);
+
+                // 🌟 2. DB의 기본 재료(is_base: true)를 플레이어 인벤토리 및 도감에 자동 등록!
+                let isUpdated = false;
+                
+                data.materials.forEach(mat => {
+                    // is_base가 true인 기본 아이템인 경우 (예: 물, 불, 흙 등)
+                    if (mat.is_base) {
+                        // 보유 수량이 없으면 기본 1개 지급
+                        if (!this.wordInventory[mat.name] || this.wordInventory[mat.name] <= 0) {
+                            this.wordInventory[mat.name] = 1;
+                            isUpdated = true;
+                        }
+                        // 도감에 등록 안 되어 있으면 등록
+                        if (!this.discoveredWords.includes(mat.name)) {
+                            this.discoveredWords.push(mat.name);
+                            if (!this.discoveryOrder.includes(mat.name)) {
+                                this.discoveryOrder.push(mat.name);
+                            }
+                            isUpdated = true;
+                        }
+                    }
+                });
+
+                // 새로 지급되거나 등록된 데이터가 있다면 저장 및 동기화
+                if (isUpdated) {
+                    this.registry.set('wordInventory', this.wordInventory);
+                    this.registry.set('discoveredWords', this.discoveredWords);
+                    this.registry.set('discoveryOrder', this.discoveryOrder);
+                    this.saveGameData();
+                    console.log("🎁 기본 원소(is_base)가 인벤토리 및 도감에 자동 지급되었습니다!");
+                }
+            }
+        } catch (error) {
+            console.error("❌ [DB 연동 실패] 백엔드 서버 연결 오류:", error);
+        }
     }
 
     spawnMaterialAround(x, y, minRadius, maxRadius, itemName, textureKey, maxLimit, angleMin = 0, angleMax = Math.PI * 2) {
@@ -548,56 +606,172 @@ export default class BaseCampScene extends Phaser.Scene {
         } 
     }
     
+// ==========================================
+    // 🌟 인벤토리(마법의 주머니) 렌더링 & 드래그 앤 드롭 합성 로직
+    // ==========================================
     renderAlchemyPouch() { 
         this.pouchContainer.innerHTML = ''; 
         const searchTerm = document.getElementById('pouch-search').value.trim().toLowerCase();
         const sortType = document.getElementById('pouch-sort').value;
+        
+        // 보유 개수가 1개 이상인 아이템만 필터링
         let availableItems = Object.entries(this.wordInventory).filter(([word, count]) => count > 0);
 
         if (searchTerm) availableItems = availableItems.filter(([word]) => word.toLowerCase().includes(searchTerm));
-        if (sortType === 'alpha') availableItems.sort((a, b) => a[0].localeCompare(b[0], 'ko-KR')); 
-        else if (sortType === 'recent') availableItems.sort((a, b) => this.discoveryOrder.indexOf(b[0]) - this.discoveryOrder.indexOf(a[0]));
+        
+        if (sortType === 'alpha') {
+            availableItems.sort((a, b) => a[0].localeCompare(b[0], 'ko-KR')); 
+        } else if (sortType === 'recent') {
+            availableItems.sort((a, b) => this.discoveryOrder.indexOf(b[0]) - this.discoveryOrder.indexOf(a[0]));
+        }
 
         availableItems.forEach(([word, count]) => { 
-            const bubble = document.createElement('div'); bubble.className = 'word-bubble'; bubble.draggable = true; bubble.innerHTML = `${word} <span class="item-count">x${count}</span>`; 
+            // 단어 버블(UI) 생성
+            const bubble = document.createElement('div'); 
+            bubble.className = 'word-bubble'; 
+            bubble.draggable = true; 
+            bubble.innerHTML = `${word} <span class="item-count">x${count}</span>`; 
+            
+            // 기본 드래그 이벤트 연결
             bubble.addEventListener('dragstart', (e) => e.dataTransfer.setData('text/plain', word)); 
             bubble.addEventListener('dragover', (e) => { e.preventDefault(); bubble.classList.add('drag-over'); }); 
             bubble.addEventListener('dragleave', () => bubble.classList.remove('drag-over')); 
-            bubble.addEventListener('dblclick', () => { if (this.wordInventory[word] > 0) { let targetSlot = -1; if(!this.replicators[0].item) targetSlot = 0; else if(this.upgrades.slot2 && !this.replicators[1].item) targetSlot = 1; if(targetSlot !== -1) this.insertToReplicator(word, targetSlot); } }); 
+            bubble.addEventListener('dblclick', () => { 
+                if (this.wordInventory[word] > 0) { 
+                    let targetSlot = -1; 
+                    if(!this.replicators[0].item) targetSlot = 0; 
+                    else if(this.upgrades.slot2 && !this.replicators[1].item) targetSlot = 1; 
+                    
+                    if(targetSlot !== -1) this.insertToReplicator(word, targetSlot); 
+                } 
+            }); 
+            // 🌟 백엔드 DB 연동 드롭(합성) 이벤트!
             bubble.addEventListener('drop', async (e) => { 
-                e.preventDefault(); bubble.classList.remove('drag-over'); 
+                e.preventDefault(); 
+                bubble.classList.remove('drag-over'); 
+                
                 if (this.isSynthesizing) return; 
+                
                 const draggedWord = e.dataTransfer.getData('text/plain'); 
                 if (draggedWord === word && this.wordInventory[word] < 2) return; 
                 
-                this.isSynthesizing = true; this.loadingLock.classList.remove('hidden'); 
+                this.isSynthesizing = true; 
+                this.loadingLock.classList.remove('hidden'); 
+                
                 try { 
-                    this.wordInventory[draggedWord] -= 1; this.wordInventory[word] -= 1; 
+                    // 1. 재료 소모
+                    this.wordInventory[draggedWord] -= 1; 
+                    this.wordInventory[word] -= 1; 
                     if (this.wordInventory[draggedWord] <= 0) delete this.wordInventory[draggedWord]; 
                     if (this.wordInventory[word] <= 0) delete this.wordInventory[word]; 
                     
                     this.registry.set('wordInventory', this.wordInventory);
                     this.renderAlchemyPouch(); 
                     
-                    const resultWord = await combineWords(draggedWord, word); 
+                    await new Promise(resolve => setTimeout(resolve, 500));
+
+                    // 🌟 2. DB 데이터 불러오기
+                    const mixLookup = this.registry.get('dbMixLookup');
+                    const dbMaterials = this.registry.get('dbMaterials');
+                    let resultWord = null;
+
+                    if (mixLookup && dbMaterials) {
+                        const w1 = draggedWord.trim();
+                        const w2 = word.trim();
+                        
+                        const mat1 = dbMaterials.find(m => m.name === w1);
+                        const mat2 = dbMaterials.find(m => m.name === w2);
+
+                        if (mat1 && mat2) {
+                            // 🌟 DB 팀원 맞춤형 로직: "mat_10"에서 숫자(10)만 쏙 뽑아내서 정수로 변환!
+                            const num1 = parseInt(mat1.material_id.replace(/[^0-9]/g, ''), 10);
+                            const num2 = parseInt(mat2.material_id.replace(/[^0-9]/g, ''), 10);
+                            
+                            let idCombo = "";
+                            // 🌟 무조건 숫자가 작은 번호가 앞으로 오게 강제 조립!
+                            if (num1 <= num2) {
+                                idCombo = `${mat1.material_id}#${mat2.material_id}`;
+                            } else {
+                                idCombo = `${mat2.material_id}#${mat1.material_id}`;
+                            }
+                            
+                            console.log(`🔍 [정렬 완료 검색] DB 개발자 규칙 적용: '${idCombo}' 로 찾습니다!`);
+                            
+                            const resultData = mixLookup[idCombo];
+
+                            if (resultData) {
+                                resultWord = resultData.name; 
+                            }
+                        }
+                    }
+                    // ----------------------------------------------------
+
+                    if (mixLookup) {
+                        const w1 = draggedWord.trim();
+                        const w2 = word.trim();
+                        let resultData = null;
+
+                        // [방법 1] ID로 조합 검색 ("mat_001#mat_002")
+                        if (dbMaterials) {
+                            const mat1 = dbMaterials.find(m => m.name === w1);
+                            const mat2 = dbMaterials.find(m => m.name === w2);
+
+                            if (mat1 && mat2) {
+                                const idCombo1 = `${mat1.material_id}#${mat2.material_id}`;
+                                const idCombo2 = `${mat2.material_id}#${mat1.material_id}`;
+                                resultData = mixLookup[idCombo1] || mixLookup[idCombo2];
+                            }
+                        }
+
+                        // [방법 2] 이름으로 검색 백업
+                        if (!resultData) {
+                            const nameComboPlus1 = `${w1}+${w2}`;
+                            const nameComboPlus2 = `${w2}+${w1}`;
+                            const nameComboHash1 = `${w1}#${w2}`;
+                            const nameComboHash2 = `${w2}#${w1}`;
+                            resultData = mixLookup[nameComboPlus1] || mixLookup[nameComboPlus2] || mixLookup[nameComboHash1] || mixLookup[nameComboHash2];
+                        }
+
+                        if (resultData) {
+                            resultWord = resultData.name; 
+                        }
+                    }
                     
-                    this.wordInventory[resultWord] = (this.wordInventory[resultWord] || 0) + 1; 
-                    this.registry.set('wordInventory', this.wordInventory);
-                    
-                    this.addDiscoveredWord(resultWord); 
-                    if (!this.discoveredRecipes[resultWord]) this.discoveredRecipes[resultWord] = []; 
-                    const sortedRecipe = [draggedWord, word].sort(); 
-                    const exists = this.discoveredRecipes[resultWord].some(r => r[0] === sortedRecipe[0] && r[1] === sortedRecipe[1]); 
-                    if (!exists) {
-                        this.discoveredRecipes[resultWord].push(sortedRecipe); 
-                        this.registry.set('discoveredRecipes', this.discoveredRecipes);
+                    // 3. 조합 결과 처리
+                    if (resultWord) {
+                        this.wordInventory[resultWord] = (this.wordInventory[resultWord] || 0) + 1; 
+                        this.registry.set('wordInventory', this.wordInventory);
+                        
+                        this.addDiscoveredWord(resultWord); 
+
+                        if (!this.discoveredRecipes[resultWord]) this.discoveredRecipes[resultWord] = []; 
+                        const sortedRecipe = [draggedWord, word].sort(); 
+                        const exists = this.discoveredRecipes[resultWord].some(r => r[0] === sortedRecipe[0] && r[1] === sortedRecipe[1]); 
+                        if (!exists) {
+                            this.discoveredRecipes[resultWord].push(sortedRecipe); 
+                            this.registry.set('discoveredRecipes', this.discoveredRecipes);
+                        }
+                        console.log(`✨ 조합 성공! [${draggedWord}] + [${word}] = [${resultWord}] 탄생!`);
+                    } else {
+                        // DB에 없는 레시피 처리
+                        console.log(`펑! [${draggedWord}] + [${word}] 조합은 존재하지 않습니다.`);
+                        
+                        this.wordInventory[draggedWord] = (this.wordInventory[draggedWord] || 0) + 1; 
+                        this.wordInventory[word] = (this.wordInventory[word] || 0) + 1; 
+                        this.registry.set('wordInventory', this.wordInventory);
                     }
 
                     this.saveGameData();
+
+                } catch (err) {
+                    console.error("합성 중 에러 발생:", err);
                 } finally { 
-                    this.isSynthesizing = false; this.loadingLock.classList.add('hidden'); this.renderAlchemyPouch(); 
+                    this.isSynthesizing = false; 
+                    this.loadingLock.classList.add('hidden'); 
+                    this.renderAlchemyPouch(); 
                 } 
-            }); 
+            });            
+            // 화면에 렌더링
             this.pouchContainer.appendChild(bubble); 
         }); 
     }
