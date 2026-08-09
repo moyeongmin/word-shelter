@@ -120,6 +120,7 @@ export default class CaveScene extends Phaser.Scene {
             callback: () => this.spawnItemAround(70, 350, 45, '흙', 'item_earth', 8, 0.04), 
             loop: true 
         });
+        this.spawnLostAiPart();
     }
 
     update() {
@@ -129,6 +130,40 @@ export default class CaveScene extends Phaser.Scene {
         this.player.body.setVelocity(vx, vy);
 
         if (Phaser.Input.Keyboard.JustDown(this.keys.F)) {
+            //퀘스트용 부품 획득 상호작용
+            if (
+                this.lostAiPart?.active &&
+                Phaser.Math.Distance.BetweenPoints(
+                    this.player,
+                    this.lostAiPart
+                ) < 55
+            ) {
+                const state = this.registry.get('houseBuildState');
+
+                if (state?.quest?.active && !state.quest.partFound) {
+                    state.quest.partFound = true;
+
+                    this.registry.set('houseBuildState', state);
+
+                    console.log('🔧 Cave에서 AI 구동 부품 획득');
+
+                    this.lostAiPart.destroy();
+
+                    const questHud = document.getElementById('quest-hud');
+
+                    if (questHud) {
+                        questHud.innerHTML = `
+                            <div class="quest-hud-type">EMERGENCY QUEST</div>
+                            <div class="quest-hud-title">잃어버린 AI 구동 부품</div>
+                            <div class="quest-hud-description">
+                                부품을 찾았다! BaseCamp의 AI에게 돌아가자.
+                            </div>
+                            <div class="quest-hud-time">✓ 부품 획득 완료</div>
+                        `;
+                    }
+                }
+            }
+
             
             // 🌟 1. 바닥에 떨어진 재료 줍기
             this.materials.getChildren().forEach((item) => {
@@ -229,5 +264,59 @@ export default class CaveScene extends Phaser.Scene {
         });
 
         this.materials.add(item);
+    }
+    spawnLostAiPart() {
+        const state = this.registry.get('houseBuildState');
+
+        if (
+            !state?.quest?.active ||
+            state.quest.completed ||
+            state.quest.partFound
+        ) {
+            return;
+        }
+
+        if (!this.textures.exists('item_ai_core_temp')) {
+            const g = this.make.graphics({ x: 0, y: 0, add: false });
+
+            g.fillStyle(0x263238, 1);
+            g.fillRoundedRect(4, 8, 40, 32, 5);
+
+            g.fillStyle(0x00ffcc, 1);
+            g.fillCircle(24, 24, 9);
+
+            g.fillStyle(0xffffff, 1);
+            g.fillCircle(21, 21, 3);
+
+            g.fillStyle(0x78909c, 1);
+            g.fillRect(0, 17, 7, 14);
+            g.fillRect(41, 17, 7, 14);
+
+            g.generateTexture('item_ai_core_temp', 48, 48);
+            g.destroy();
+        }
+
+        const worldWidth = this.physics.world.bounds.width;
+        const worldHeight = this.physics.world.bounds.height;
+
+        // ==========================================
+        // Cave 남쪽 중앙
+        // ==========================================
+        this.lostAiPart = this.physics.add.sprite(
+            worldWidth / 2,
+            worldHeight - 55,
+            'item_ai_core_temp'
+        );
+
+        this.lostAiPart.setScale(0.9);
+
+        this.tweens.add({
+            targets: this.lostAiPart,
+            y: this.lostAiPart.y - 8,
+            duration: 900,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.easeInOut'
+        });
     }
 }

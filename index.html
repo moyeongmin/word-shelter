@@ -14,7 +14,6 @@
         </div>
 
         <div id="ui-container">
-
             <div id="start-screen">
                 <div class="title-container">
                     <h1 class="main-title">1.1.1%</h1>
@@ -80,37 +79,6 @@
                 </div>
             </div>
 
-            <div id="alchemy-desk-screen" class="hidden">
-                <div class="pouch-header">
-                    <h2>🧪 연금술 작업대</h2>
-                    <button id="close-desk-btn" class="icon-close-btn" style="background:#ff4757; color:white; width:auto; padding:0 15px; border-radius:8px;">작업 종료 ✕</button>
-                </div>
-                <p class="pouch-guide">물질을 조합하거나, 좌측 슬롯에 넣어 자동 복제하세요. (더블클릭 지원)</p>
-                
-                <div class="desk-layout">
-                    <div class="desk-left">
-                        <span class="section-label" style="text-align: center;">AUTO REPLICATORS</span>
-                        <div class="rep-slot-wrapper"><div id="rep-drop-0" class="replicator-tube empty" data-slot="0"><span>1번 슬롯<br>드롭</span></div><div class="rep-bar-bg"><div id="rep-bar-0" class="rep-bar-fill"></div></div><button id="remove-rep-0" class="hidden">1번 회수</button></div>
-                        <div class="rep-slot-wrapper" style="margin-top:20px;"><div id="rep-drop-1" class="replicator-tube locked" data-slot="1"><span>잠김<br>(진화 필요)</span></div><div class="rep-bar-bg"><div id="rep-bar-1" class="rep-bar-fill"></div></div><button id="remove-rep-1" class="hidden">2번 회수</button></div>
-                    </div>
-
-                    <div class="desk-right" style="position: relative; display: flex; flex-direction: column;">
-                        <div id="alchemy-loading-lock" class="hidden">✨ 연금술 진행 중... ✨</div>
-                        
-                        <div class="filter-controls pouch-filters" style="margin-bottom: 15px;">
-                            <input type="text" id="pouch-search" placeholder="보유 단어 검색..." class="search-input">
-                            <select id="pouch-sort" class="sort-select">
-                                <option value="recent">최근 획득순</option>
-                                <option value="alpha">가나다 순</option>
-                            </select>
-                            <button class="sort-select disabled" disabled title="LLM 속성 분류 (준비 중)">✨ 속성 필터</button>
-                        </div>
-
-                        <div id="magic-pouch" class="full-pouch-container"></div>
-                    </div>
-                </div>
-            </div>
-
             <div id="portal-confirm-modal" class="hidden">
                 <div class="section-box" style="text-align: center; width: 300px; background: rgba(20,20,20,0.95);">
                   <h3 style="margin-top: 0; color: #646cff;">🌲 숲 탐험</h3>
@@ -120,10 +88,54 @@
                     <button id="portal-no-btn" class="material-btn" style="background: #d9534f; width: 100px;">아니오</button>
                   </div>
                 </div>
-              </div>
-            
+            </div>
         </div>
     </div>
+
+    <!-- 💡 #app-container 바깥쪽, body 바로 아래로 완전히 분리 -->
+            <div id="alchemy-desk-screen" class="hidden">
+        <!-- 상단 헤더 영역 (제목, 설명 좌측 / 종료 버튼 우측) -->
+        <div class="desk-header-area">
+            <div class="desk-header-left">
+                <h2>🧪 연금술 작업대</h2>
+                <p class="pouch-guide-top">재료를 드래그하여 복제하거나 서로 조합하세요</p>
+            </div>
+            <button id="close-desk-btn" class="icon-close-btn" style="background:#ff4757; color:white; width:auto; padding:6px 15px; border-radius:8px; border:none; cursor:pointer; font-weight:bold;">작업 종료 ✕</button>
+        </div>
+
+        <!-- 메인 콘텐츠 그리드 영역 (중앙) -->
+        <div class="desk-main-grid">
+            <!-- 1. 좌측 열: 복제기 영역 -->
+            <div class="desk-left-col">
+                <span class="section-label" style="text-align: center; margin-bottom: 10px; color: #aaa; font-size: 0.8rem;">AUTO REPLICATORS</span>
+                
+                <div class="rep-slot-wrapper">
+                    <div id="rep-drop-0" class="replicator-tube empty" data-slot="0"><span>복제기 1<br>[ DROP ]</span></div>
+                    <div class="rep-bar-bg"><div id="rep-bar-0" class="rep-bar-fill"></div></div>
+                    <button id="remove-rep-0" class="hidden">1번 회수</button>
+                </div>
+                
+                <div class="rep-slot-wrapper" style="margin-top:20px;">
+                    <div id="rep-drop-1" class="replicator-tube locked" data-slot="1"><span>복제기 2<br>[ LOCKED ]</span></div>
+                    <div class="rep-bar-bg"><div id="rep-bar-1" class="rep-bar-fill"></div></div>
+                    <button id="remove-rep-1" class="hidden">2번 회수</button>
+                </div>
+            </div>
+
+            <!-- 2. 우측/중앙 상단 열: 검색 및 인벤토리 필드 -->
+            <div class="desk-upper-right-col">
+                <div class="filter-controls pouch-filters">
+                    <input type="text" id="pouch-search" placeholder="검색............" class="search-input">
+                    <select id="pouch-sort" class="sort-select">
+                        <option value="recent">최근순 ▼</option>
+                        <option value="alpha">가나다 순</option>
+                    </select>
+                </div>
+                <div id="magic-pouch" class="full-pouch-container"></div>
+            </div>
+        </div>
+    </div>
+
     <script type="module" src="/src/main.js"></script>
 </body>
 </html>
