@@ -11,6 +11,7 @@
         <div id="game-container"></div>
 
         <div id="ui-container">
+            <div id="start-screen"></div>
             
             <div id="hud-container">
                 <button id="open-upgrade-btn" class="hud-btn" title="진화/업그레이드">⚡ 진화</button>
@@ -58,7 +59,7 @@
                     <h2>⚡ 코어 성능 진화</h2>
                     <button id="close-upgrade-btn" class="icon-close-btn">✕</button>
                 </div>
-                <div class="dict-stats">보유 업그레이드 포인트: <span id="available-points" style="color:#00ffff;">0</span> PT</div>
+                <div class="dict-stats">보유 진화 포인트: <span id="available-points" style="color:#00ffff;">0</span> PT</div>
                 
                 <div class="upg-row">
                     <div class="upg-info">
@@ -113,20 +114,23 @@
                 <div class="modal-header">
                     <h2>🗺️ 구역 이동</h2>
                 </div>
-                <div id="portal-modal-desc">이동하시겠습니까?</div>
+                <div id="portal-modal-desc" style="text-align:center; margin-bottom:15px; font-size:1.1rem;">이동하시겠습니까?</div>
                 <div style="display: flex; gap: 16px; justify-content: center; width: 100%;">
                     <button id="portal-yes-btn">예 (F)</button>
                     <button id="portal-no-btn">아니오</button>
                 </div>
             </div>
 
-            <div id="clean-confirm-modal" class="modal hidden">
-                <div class="modal-content">
-                    <p>흙에 뒤덮인 장치가 있다. 청소해 볼까?</p>
-                    <div class="modal-btn-group">
-                        <button id="clean-yes-btn" class="sys-btn yes-btn">확인 (F)</button>
-                        <button id="clean-no-btn" class="sys-btn no-btn">취소</button>
-                    </div>
+            <div id="clean-confirm-modal" class="hidden">
+                <div class="modal-header">
+                    <h2>🧹 작업대 청소</h2>
+                </div>
+                <div style="text-align:center; margin-bottom:20px; font-size:1.1rem; line-height: 1.5;">
+                    흙에 뒤덮인 장치가 있다.<br>청소해 볼까?
+                </div>
+                <div style="display: flex; gap: 16px; justify-content: center; width: 100%;">
+                    <button id="clean-yes-btn">확인 (F)</button>
+                    <button id="clean-no-btn">취소</button>
                 </div>
             </div>
     
@@ -138,53 +142,53 @@
                     <div class="dialogue-hint">클릭 또는 F를 눌러 다음으로 ▼</div>
                 </div>
             </div>
+        </div> 
+    </div>
 
-            <div id="alchemy-desk-screen" class="hidden">
-                <div id="alchemy-loading-lock" class="hidden">
-                    <div class="loader-spinner" style="width: 50px; height: 50px; margin-bottom: 20px;"></div>
-                    <div>원소 융합 연산 중...</div>
+    <div id="alchemy-desk-screen" class="hidden">
+        
+        <div id="alchemy-loading-lock" class="hidden">
+            <div>원소 융합 연산 중...</div>
+        </div>
+
+        <div class="desk-header-area">
+            <div class="desk-header-left">
+                <h2>🧪 연금술 고양이 코어</h2>
+                <p class="pouch-guide-top">재료를 드래그하여 복제하거나 서로 조합하세요</p>
+            </div>
+            <button id="close-desk-btn" class="icon-close-btn" style="background:#ff4757; color:white; width:auto; padding:6px 15px; border-radius:8px; border:none; cursor:pointer; font-weight:bold;">작업 종료 ✕</button>
+        </div>
+
+        <div class="desk-main-grid">
+            <div class="desk-left-col">
+                <span class="section-label" style="text-align: center; margin-bottom: 10px; color: #00ffff; font-size: 0.8rem;">AUTO REPLICATORS</span>
+                
+                <div class="rep-slot-wrapper">
+                    <div id="rep-drop-0" class="replicator-tube empty" data-slot="0"><span>복제기 1<br>[ DROP ]</span></div>
+                    <div class="rep-bar-bg"><div id="rep-bar-0" class="rep-bar-fill"></div></div>
+                    <button id="remove-rep-0" class="icon-close-btn hidden" style="width: 100%; height: 28px; font-size: 0.8rem; margin-top: 5px;">1번 회수</button>
                 </div>
-
-                <div class="pouch-header">
-                    <h2>🧪 AI 연금술 코어</h2>
-                    <button id="close-desk-btn" class="icon-close-btn">✕</button>
-                </div>
-                <div class="pouch-guide">원소를 끌어다 다른 원소 위에 드롭하면 조합됩니다.</div>
-
-                <div class="desk-layout">
-                    <div class="desk-left">
-                        <div class="section-label">자동 생산 슬롯</div>
-                        
-                        <div class="rep-slot-wrapper">
-                            <div id="rep-drop-0" class="replicator-tube empty">
-                                <span>1번 슬롯<br>드롭</span>
-                            </div>
-                            <div class="rep-bar-bg"><div id="rep-bar-0" class="rep-bar-fill"></div></div>
-                            <button id="remove-rep-0" class="icon-close-btn hidden" style="width: 100%; height: 28px; font-size: 0.8rem;">해제</button>
-                        </div>
-
-                        <div class="rep-slot-wrapper">
-                            <div id="rep-drop-1" class="replicator-tube locked">
-                                <span>잠김<br>(진화 필요)</span>
-                            </div>
-                            <div class="rep-bar-bg"><div id="rep-bar-1" class="rep-bar-fill"></div></div>
-                            <button id="remove-rep-1" class="icon-close-btn hidden" style="width: 100%; height: 28px; font-size: 0.8rem;">해제</button>
-                        </div>
-                    </div>
-
-                    <div class="desk-right">
-                        <div class="filter-controls">
-                            <input type="text" id="pouch-search" class="search-input" placeholder="보유 원소 검색...">
-                            <select id="pouch-sort" class="sort-select">
-                                <option value="recent">최신순</option>
-                                <option value="alpha">가나다순</option>
-                            </select>
-                        </div>
-                        <div id="magic-pouch" class="full-pouch-container"></div>
-                    </div>
+                
+                <div class="rep-slot-wrapper" style="margin-top:20px;">
+                    <div id="rep-drop-1" class="replicator-tube locked" data-slot="1"><span>복제기 2<br>[ LOCKED ]</span></div>
+                    <div class="rep-bar-bg"><div id="rep-bar-1" class="rep-bar-fill"></div></div>
+                    <button id="remove-rep-1" class="icon-close-btn hidden" style="width: 100%; height: 28px; font-size: 0.8rem; margin-top: 5px;">2번 회수</button>
                 </div>
             </div>
 
-        </div> </div> <script type="module" src="./src/main.js"></script>
+            <div class="desk-upper-right-col">
+                <div class="filter-controls pouch-filters">
+                    <input type="text" id="pouch-search" placeholder="보유 원소 검색..." class="search-input">
+                    <select id="pouch-sort" class="sort-select">
+                        <option value="recent">최신순 ▼</option>
+                        <option value="alpha">가나다순</option>
+                    </select>
+                </div>
+                <div id="magic-pouch" class="full-pouch-container"></div>
+            </div>
+        </div>
+        </div>
+
+    <script type="module" src="./src/main.js"></script>
 </body>
 </html>
