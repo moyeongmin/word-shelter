@@ -98,6 +98,13 @@ export default class BaseCampScene extends Phaser.Scene {
     get repYield() { return 1 + this.upgrades.yield; }
 
     create() {
+
+        if (!this.textures.exists('pixel')) {
+            const g = this.make.graphics({x: 0, y: 0, add: false});
+            g.fillStyle(0xffffff, 1);
+            g.fillRect(0, 0, 4, 4);
+            g.generateTexture('pixel', 4, 4);
+        }
         const bg = this.add.image(0, 0, 'bg_basecamp').setOrigin(0, 0);
 
         this.physics.world.setBounds(0, 0, bg.width, bg.height);
@@ -332,6 +339,61 @@ export default class BaseCampScene extends Phaser.Scene {
         });
     }
 
+    // ==========================================
+    // 🌟 획득 시 파티클 폭발 효과 (에러 방지 완벽판)
+    // ==========================================
+    createPickupBurst(x, y, targetColor) {
+        let colorVal = 0xffffff; // 기본 색상 (흰색)
+        
+        // 문자열('#ff0000')이 들어왔을 때
+        if (typeof targetColor === 'string') {
+            colorVal = Phaser.Display.Color.HexStringToColor(targetColor).color;
+        } 
+        // 숫자(0xff0000)가 들어왔을 때
+        else if (typeof targetColor === 'number') {
+            colorVal = targetColor;
+        }
+
+        this.add.particles(x, y, 'pixel', {
+            tint: colorVal,
+            speed: { min: 50, max: 150 },
+            scale: { start: 1.2, end: 0 },
+            lifespan: 500,
+            blendMode: 'ADD',
+            duration: 100
+        });
+    }
+
+    // ==========================================
+    // 🌟 획득 시 머리 위 텍스트 팝업 (에러 방지 완벽판)
+    // ==========================================
+    showFloatingText(x, y, message, targetColor) {
+        let fillStr = '#ffffff'; // 기본 색상 (흰색)
+        
+        // 문자열('#ff0000')이 들어왔을 때
+        if (typeof targetColor === 'string') {
+            fillStr = targetColor;
+        } 
+        // 숫자(0xff0000)가 들어왔을 때 변환
+        else if (typeof targetColor === 'number') {
+            fillStr = '#' + targetColor.toString(16).padStart(6, '0');
+        }
+
+        const text = this.add.text(x, y - 20, message, {
+            fontSize: '15px',
+            fill: fillStr,
+            fontStyle: 'bold'
+        }).setOrigin(0.5).setStroke('#000000', 3);
+
+        this.tweens.add({
+            targets: text,
+            y: y - 60,
+            alpha: 0,
+            duration: 1000,
+            onComplete: () => text.destroy()
+        });
+    }
+
     update() {
         if (!this.player.active) return;
         this.updateInteractableOutlines();
@@ -350,19 +412,30 @@ export default class BaseCampScene extends Phaser.Scene {
 
         if (Phaser.Input.Keyboard.JustDown(this.keys.F)) {
             // 바닥에 떨어진 재료 줍기
-            this.materials.getChildren().forEach((item) => {
-                if (item.active && Phaser.Math.Distance.BetweenPoints(this.player, item) < 50) {
-                    this.wordInventory[item.name] = (this.wordInventory[item.name] || 0) + 1;
+            this.materials.getChildren().forEach((mat) => {
+                if (mat.active && Phaser.Math.Distance.BetweenPoints(this.player, mat) < 55) {
                     
-                    // 🌟 인벤토리가 변했음을 엔진 시스템에 강제 보고!
+                    // 인벤토리 & 도감 추가
+                    this.wordInventory[mat.name] = (this.wordInventory[mat.name] || 0) + 1;
+                    this.addDiscoveredWord(mat.name);
+
+                    // 글로벌 Registry 동기화
                     this.registry.set('wordInventory', this.wordInventory);
-                    
-                    if (typeof this.addDiscoveredWord === 'function') {
-                        this.addDiscoveredWord(item.name);
+                    this.registry.set('discoveredWords', this.discoveredWords);
+
+                    // 🌟 에러 방지: colorHex가 없으면 color나 기본 흰색('#ffffff') 사용
+                    const effectColor = mat.colorHex || mat.color || '#ffffff';
+
+                    // 획득 이펙트 & 텍스트 띄우기
+                    this.createPickupBurst(mat.x, mat.y, effectColor);
+                    this.showFloatingText(mat.x, mat.y, `+ ${mat.name}`, effectColor);
+
+                    // 즉시 세이브
+                    if (typeof this.saveGameData === 'function') {
+                        this.saveGameData();
                     }
-                    console.log(`✨ [${item.name}] 획득!`);
-                    item.destroy(); 
-                    this.saveGameData();
+
+                    mat.destroy();
                 }
             });
 

@@ -122,7 +122,7 @@ export default class NorthForestScene extends Phaser.Scene {
         );
 
         // 필요하면 1.5 등으로 변경
-        this.cameras.main.setZoom(1);
+        this.cameras.main.setZoom(1.5);
 
         // ==========================================
         // 2. 픽셀 파티클 텍스처
