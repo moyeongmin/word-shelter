@@ -111,7 +111,6 @@ export default class MaterialField {
             .filter(([, count]) => count > 0)
             .forEach(([word, count], index) => {
                 if (!savedPositions[word]) {
-                    // 이제 컨테이너가 3000x3000이므로 10~70%면 아주 넓게 배치됩니다.
                     savedPositions[word] = {
                         x: `${Math.random() * 70 + 10}%`,
                         y: `${Math.random() * 70 + 10}%`
@@ -142,9 +141,6 @@ export default class MaterialField {
         const matData = dbMaterials.find(m => m.name === word);
         const imageUrl = matData ? matData.image_url : null;
 
-        // =========================================================================
-        // 🌟 카테고리 컬러 맵 (테두리 및 글로우 적용)
-        // =========================================================================
         const categoryColors = {
             "기타": "#9A968D",
             "K-야식 포장마차": "#E63900",
@@ -175,16 +171,15 @@ export default class MaterialField {
             const numId = parseInt(matData.material_id.replace(/[^0-9]/g, ''), 10);
             let borderColor = null;
 
-            // 1~8: 색상 없음 (기본 테두리)
             if (numId >= 9 && numId <= 42) {
-                borderColor = categoryColors["기타"]; // 9~42 기타 테두리
+                borderColor = categoryColors["기타"]; 
             } else if (numId >= 43) {
-                borderColor = categoryColors[matData.category] || categoryColors["기타"]; // 43이상 카테고리 테두리
+                borderColor = categoryColors[matData.category] || categoryColors["기타"]; 
             }
 
             if (borderColor) {
                 element.style.border = `2px solid ${borderColor}`;
-                element.style.boxShadow = `0 0 12px ${borderColor}99`; // 테두리 색상에 맞춰 은은하게 빛남
+                element.style.boxShadow = `0 0 12px ${borderColor}99`; 
             }
         }
 
@@ -265,7 +260,23 @@ export default class MaterialField {
                     if (resultData) resultWord = resultData.name;
                 }
 
-                // 🌟 2. 정규 레시피가 없을 때 기획된 티어(Tier) 기반 랜덤 로직 가동!
+                // 🌟 [추가됨] 1.5. 로컬 도감(discoveredRecipes)에서 이전에 나온 기록 탐색 (캐싱 유지)
+                if (!resultWord) {
+                    const recipes = this.scene.registry.get('discoveredRecipes') || {};
+                    const sortedCombo = [draggedWord, word].sort();
+                    
+                    for (const [savedResult, comboList] of Object.entries(recipes)) {
+                        const exists = comboList.some(r => r[0] === sortedCombo[0] && r[1] === sortedCombo[1]);
+                        
+                        if (exists) {
+                            resultWord = savedResult; 
+                            console.log(`[캐싱] 로컬 도감 기록 발동! ${draggedWord} + ${word} => ${resultWord}`);
+                            break;
+                        }
+                    }
+                }
+
+                // 🌟 2. 정규 레시피 및 도감 기록이 없을 때만 랜덤 로직 가동
                 if (!resultWord && mat1 && mat2 && dbMaterials) {
                     const n1 = parseInt(mat1.material_id.replace(/[^0-9]/g, ''), 10);
                     const n2 = parseInt(mat2.material_id.replace(/[^0-9]/g, ''), 10);
@@ -279,7 +290,6 @@ export default class MaterialField {
                     const t1 = getTier(n1);
                     const t2 = getTier(n2);
 
-                    // 👉 [규칙 A] 3티어(43이상) 재료가 하나라도 포함된 경우
                     if (t1 === 3 || t2 === 3) {
                         let targetCategory = null;
                         
@@ -301,12 +311,10 @@ export default class MaterialField {
                             if (fallback3.length > 0) resultWord = fallback3[Math.floor(Math.random() * fallback3.length)].name;
                         }
                     } 
-                    // 👉 [규칙 B] 2티어(9~42) + 2티어(9~42) 조합인 경우
                     else if (t1 === 2 && t2 === 2) {
                         const fallback3 = dbMaterials.filter(m => parseInt(m.material_id.replace(/[^0-9]/g, ''), 10) >= 43);
                         if (fallback3.length > 0) resultWord = fallback3[Math.floor(Math.random() * fallback3.length)].name;
                     } 
-                    // 👉 [규칙 C] 1티어 + 2티어 / 1티어 + 1티어 조합인 경우
                     else {
                         const fallback2 = dbMaterials.filter(m => {
                             const num = parseInt(m.material_id.replace(/[^0-9]/g, ''), 10);
@@ -334,7 +342,7 @@ export default class MaterialField {
                         this.scene.registry.set('discoveredRecipes', recipes);
                     }
 
-                    // 🌟 [추가됨] 조합 성공 시 직관적인 결과 텍스트 출력!
+                    // 🌟 [수정됨] 조합 성공 시 안내 텍스트
                     if (this.ui?.setDialogue) {
                         this.ui.setDialogue(`✨ 연금술 성공! [${draggedWord}]와(과) [${word}]을(를) 합쳐서 [${resultWord}]이(가) 탄생했다냥!`);
                     }
@@ -344,7 +352,7 @@ export default class MaterialField {
                     inventory[word] = (inventory[word] || 0) + 1;
                     this.scene.registry.set('wordInventory', inventory);
                     
-                    // 🌟 [수정됨] 조합 실패 시 안내 텍스트 변경
+                    // 🌟 [수정됨] 조합 실패 시 안내 텍스트
                     if (this.ui?.setDialogue) {
                         this.ui.setDialogue(`펑! [${draggedWord}]와(과) [${word}]은(는) 합칠 수 없는 거 같다냥... 재료는 돌려주겠다냥!`);
                     }
@@ -364,19 +372,13 @@ export default class MaterialField {
         this.container.appendChild(element);
     }
 
-    // =========================================================================
-    // 🌟 바탕화면 드래그 패닝(무한 캔버스) 및 아이템 드롭 위치 기억
-    // =========================================================================
     initEventListeners() {
         if (!this.container) return;
 
-        // 드래그 패닝을 위한 변수들
         let isDraggingBg = false;
         let startX, startY, scrollLeft, scrollTop;
 
-        // 1. 마우스 클릭 (바탕 클릭 시에만 패닝 모드 시작)
         this.container.addEventListener('mousedown', (e) => {
-            // 아이템(word-bubble)을 클릭한 게 아니라 캔버스 바닥을 클릭했을 때만 반응
             if (e.target === this.container) {
                 isDraggingBg = true;
                 this.container.classList.add('panning');
@@ -387,32 +389,27 @@ export default class MaterialField {
             }
         });
 
-        // 2. 마우스 이동 (패닝 중일 때 스크롤 위치 이동)
         this.container.addEventListener('mousemove', (e) => {
             if (!isDraggingBg) return;
             e.preventDefault();
             const x = e.pageX - this.container.offsetLeft;
             const y = e.pageY - this.container.offsetTop;
-            const walkX = (x - startX); // 이동 거리
+            const walkX = (x - startX); 
             const walkY = (y - startY);
             this.container.scrollLeft = scrollLeft - walkX;
             this.container.scrollTop = scrollTop - walkY;
         });
 
-        // 3. 마우스 떼기 (패닝 종료)
         this.container.addEventListener('mouseup', () => {
             isDraggingBg = false;
             this.container.classList.remove('panning');
         });
 
-        // 4. 영역을 벗어났을 때 방어 코드
         this.container.addEventListener('mouseleave', () => {
             isDraggingBg = false;
             this.container.classList.remove('panning');
         });
 
-        // ===============================================
-        // 아이템 드롭 시 위치 저장 (스크롤된 좌표까지 완벽 보정)
         this.container.addEventListener('dragover', e => e.preventDefault());
         this.container.addEventListener('drop', e => {
             e.preventDefault();
@@ -421,11 +418,9 @@ export default class MaterialField {
             const word = e.dataTransfer.getData('text/plain');
             if (!word) return;
 
-            // 주머니 빈 공간에 내려놓았을 때
             if (e.target === this.container || e.target.id === 'magic-pouch') {
                 const rect = this.container.getBoundingClientRect();
                 
-                // 🌟 스크롤된 만큼 거리를 보정해 줍니다 (this.container.scrollLeft/Top)
                 const x = e.clientX - rect.left + this.container.scrollLeft - 40; 
                 const y = e.clientY - rect.top + this.container.scrollTop - 20;
 
