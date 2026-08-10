@@ -518,10 +518,15 @@ export default class BaseCampScene extends Phaser.Scene {
     }
 
     updateReplicatorsTick() {
-        const now = Date.now(); 
+        const now = Date.now();
+        let uiNeedsUpdate = false;
+        let isAnyRunning = false;
+
         this.replicators.forEach((rep, i) => {
             if (rep.item) {
+                isAnyRunning = true;
                 const elapsed = now - rep.lastTick;
+                
                 if (elapsed >= this.repTime) {
                     const ticks = Math.floor(elapsed / this.repTime);
                     this.wordInventory[rep.item] = (this.wordInventory[rep.item] || 0) + (this.repYield * ticks);
@@ -529,14 +534,30 @@ export default class BaseCampScene extends Phaser.Scene {
                     this.addDiscoveredWord(rep.item);
                     rep.lastTick += ticks * this.repTime;
                     this.registry.set('replicators', this.replicators);
+                    uiNeedsUpdate = true;
                     this.saveGameData();
-                    this.renderAlchemyPouch(); // 복제 시 화면 갱신
                 }
-                if (!this.deskScreen.classList.contains('hidden')) { document.getElementById(`rep-bar-${i}`).style.width = `${Math.min(100, ((now - rep.lastTick) / this.repTime) * 100)}%`; }
+                
+                if (!this.deskScreen.classList.contains('hidden')) {
+                    const repBar = document.getElementById(`rep-bar-${i}`);
+                    if (repBar) repBar.style.width = `${Math.min(100, ((now - rep.lastTick) / this.repTime) * 100)}%`;
+                }
             } else {
-                if (!this.deskScreen.classList.contains('hidden')) document.getElementById(`rep-bar-${i}`).style.width = `0%`;
+                if (!this.deskScreen.classList.contains('hidden')) {
+                    const repBar = document.getElementById(`rep-bar-${i}`);
+                    if (repBar) repBar.style.width = '0%';
+                }
             }
         });
+
+        if (this.repEmitter) this.repEmitter.emitting = isAnyRunning;
+
+        // 🌟 [수정된 부분] 집 짓기(10가지 재료 선택) 모드일 때는 인벤토리 UI 리로드를 방지!
+        const isHouseSelecting = this.registry.get('isHouseSelecting');
+        
+        if (uiNeedsUpdate && !this.deskScreen.classList.contains('hidden') && !isHouseSelecting) {
+            this.renderAlchemyPouch();
+        }
     }
 
     updateInteractableOutlines() {

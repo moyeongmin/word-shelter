@@ -328,15 +328,26 @@ export default class MaterialField {
                     if (!recipes[resultWord]) recipes[resultWord] = [];
                     const sortedRecipe = [draggedWord, word].sort();
                     const exists = recipes[resultWord].some(r => r[0] === sortedRecipe[0] && r[1] === sortedRecipe[1]);
+                    
                     if (!exists) {
                         recipes[resultWord].push(sortedRecipe);
                         this.scene.registry.set('discoveredRecipes', recipes);
                     }
+
+                    // 🌟 [추가됨] 조합 성공 시 직관적인 결과 텍스트 출력!
+                    if (this.ui?.setDialogue) {
+                        this.ui.setDialogue(`✨ 연금술 성공! [${draggedWord}]와(과) [${word}]을(를) 합쳐서 [${resultWord}]이(가) 탄생했다냥!`);
+                    }
+
                 } else {
                     inventory[draggedWord] = (inventory[draggedWord] || 0) + 1;
                     inventory[word] = (inventory[word] || 0) + 1;
                     this.scene.registry.set('wordInventory', inventory);
-                    if (this.ui?.setDialogue) this.ui.setDialogue('합성에 실패하여 재료를 되돌려받았습니다.');
+                    
+                    // 🌟 [수정됨] 조합 실패 시 안내 텍스트 변경
+                    if (this.ui?.setDialogue) {
+                        this.ui.setDialogue(`펑! [${draggedWord}]와(과) [${word}]은(는) 합칠 수 없는 거 같다냥... 재료는 돌려주겠다냥!`);
+                    }
                 }
 
                 if (typeof this.scene.saveGameData === 'function') this.scene.saveGameData();

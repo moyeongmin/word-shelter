@@ -113,7 +113,7 @@ export default class Camp2CaveScene extends Phaser.Scene {
             if (Phaser.Math.Distance.BetweenPoints(this.player, this.baseCampPortal) < 60) {
                 this.scene.start('BaseCampScene', { spawnFrom: 'Camp2Cave' });
             }
-            if (Phaser.Math.Distance.BetweenPoints(this.player, this.cavePortal) < 80) {
+            if (Phaser.Math.Distance.BetweenPoints(this.player, this.cavePortal) < 130) {
                 this.scene.start('CaveScene', { spawnFrom: 'Camp2Cave' });
             }
         }
