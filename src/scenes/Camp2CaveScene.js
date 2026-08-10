@@ -32,12 +32,10 @@ export default class Camp2CaveScene extends Phaser.Scene {
         this.cavePortal = this.add.rectangle(bg.width - 270, bg.height / 2 + 20, 300, 250, 0xff0000, 0);
         this.physics.add.existing(this.cavePortal, true);
 
-        // 3. 투명 벽 그룹 생성 (이 그룹에 박스들을 넣을 거야)
+        // 3. 투명 벽 그룹 생성
         this.obstacles = this.physics.add.staticGroup();
 
-        this.obstacles = this.physics.add.staticGroup();
-
-        // 🌟 네가 데브툴로 깎아낸 30개의 맵 충돌 박스 좌표 배열 [x, y, width, height]
+        // 맵 충돌 박스 좌표 배열 [x, y, width, height]
         const wallData = [
             [52, 346, 41, 41], [138, 327, 79, 85], [198, 305, 47, 28], [256, 256, 137, 45],
             [298, 203, 40, 58], [342, 161, 59, 51], [413, 207, 83, 41], [484, 162, 132, 39],
@@ -55,7 +53,7 @@ export default class Camp2CaveScene extends Phaser.Scene {
             [1283, 474, 70, 44], [106, 234, 193, 94], [434, 182, 30, 21],[1307, 405, 104, 128]
         ];
 
-        // 🌟 배열을 순회하며 벽을 생성하고 물리 그룹에 추가
+        // 배열을 순회하며 벽을 생성하고 물리 그룹에 추가 (알파값 0으로 완전 투명 처리)
         wallData.forEach(data => {
             const wall = this.add.rectangle(data[0], data[1], data[2], data[3], 0x0000ff, 0);
             this.physics.add.existing(wall, true);
@@ -88,65 +86,6 @@ export default class Camp2CaveScene extends Phaser.Scene {
         
         this.cameras.main.startFollow(this.player, true, 0.08, 0.08);
         this.keys = this.input.keyboard.addKeys('W,A,S,D,F');
-
-        // ==========================================
-        // 🛠️ 실시간 충돌 박스 제작 데브 툴 탑재 
-        // ==========================================
-        this.devToolActive = true;  // 🌟 다 그렸다면 나중에 false로 변경
-        this.boxStart = null;
-        this.devGraphics = this.add.graphics().setDepth(9999);
-
-        // 상단 안내 메시지
-        this.add.text(10, 10, '🛠️ 데브툴 켜짐: 마우스 드래그로 벽 생성', { 
-            fontSize: '16px', fill: '#fff', backgroundColor: '#ff0000', padding: { x: 5, y: 5 } 
-        }).setScrollFactor(0).setDepth(9999);
-
-        this.input.on('pointerdown', (pointer) => {
-            if (!this.devToolActive) return;
-            this.boxStart = { x: pointer.worldX, y: pointer.worldY };
-        });
-
-        this.input.on('pointermove', (pointer) => {
-            if (!this.devToolActive || !this.boxStart) return;
-            this.devGraphics.clear();
-            this.devGraphics.lineStyle(2, 0x00ff00, 1);
-            this.devGraphics.fillStyle(0x00ff00, 0.3);
-            
-            const w_box = Math.abs(pointer.worldX - this.boxStart.x);
-            const h_box = Math.abs(pointer.worldY - this.boxStart.y);
-            const x = Math.min(this.boxStart.x, pointer.worldX);
-            const y = Math.min(this.boxStart.y, pointer.worldY);
-            
-            this.devGraphics.fillRect(x, y, w_box, h_box);
-            this.devGraphics.strokeRect(x, y, w_box, h_box);
-        });
-
-        this.input.on('pointerup', (pointer) => {
-            if (!this.devToolActive || !this.boxStart) return;
-            
-            const w_box = Math.abs(pointer.worldX - this.boxStart.x);
-            const h_box = Math.abs(pointer.worldY - this.boxStart.y);
-            const x = Math.min(this.boxStart.x, pointer.worldX);
-            const y = Math.min(this.boxStart.y, pointer.worldY);
-
-            if (w_box > 5 && h_box > 5) {
-                const centerX = x + w_box / 2;
-                const centerY = y + h_box / 2;
-
-                // 1. 임시 충돌 박스를 게임상에 즉시 반영 (파란색, 알파 0.5)
-                const box = this.add.rectangle(centerX, centerY, w_box, h_box, 0x0000ff, 0.5);
-                this.physics.add.existing(box, true); 
-                this.obstacles.add(box); // 장애물 그룹에 편입
-
-                // 2. 브라우저 콘솔창(F12)에 복사해서 쓸 수 있는 코드를 예쁘게 출력!
-                const codeSnippet = `const wall = this.add.rectangle(${centerX.toFixed(0)}, ${centerY.toFixed(0)}, ${w_box.toFixed(0)}, ${h_box.toFixed(0)}, 0x0000ff, 0);\nthis.physics.add.existing(wall, true);\nthis.obstacles.add(wall);`;
-                
-                console.log('%c👇 코드를 create() 안에 붙여넣으세요 👇', 'background: #222; color: #00ff00; font-size: 14px; font-weight: bold;');
-                console.log(codeSnippet);
-            }
-            this.boxStart = null;
-            this.devGraphics.clear();
-        });
     }
 
     update() {

@@ -630,3 +630,32 @@ button:active { transform: scale(0.95); }
     justify-content: center;
     gap: 4px;
 }
+
+/* ==========================================================================
+   🌟 연금술 작업대 (마법 주머니) 무한 캔버스 & 드래그 이동 스타일
+   ========================================================================== */
+   #magic-pouch {
+    overflow: auto !important; /* 내부 공간이 넘치면 스크롤 허용 */
+    cursor: grab;
+    position: relative; 
+    /* 스크롤바 숨김 처리 */
+    -ms-overflow-style: none;  /* IE, Edge */
+    scrollbar-width: none;  /* Firefox */
+}
+
+#magic-pouch::-webkit-scrollbar {
+    display: none; /* Chrome, Safari 스크롤바 숨김 */
+}
+
+#magic-pouch.panning {
+    cursor: grabbing; /* 드래그 중일 때 커서 모양 변경 */
+}
+
+/* 🌟 내부 공간을 강제로 3000x3000px로 확장하는 가상 요소 */
+#magic-pouch::after {
+    content: '';
+    display: block;
+    width: 3000px;
+    height: 3000px;
+    pointer-events: none;
+}

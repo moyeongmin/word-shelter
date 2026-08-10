@@ -473,7 +473,7 @@ export default class BaseCampScene extends Phaser.Scene {
         if (!isValid) return; 
         const item = this.physics.add.sprite(spawnX, spawnY, textureKey);
         item.name = itemName; item.setScale(0); 
-        this.tweens.add({ targets: item, scale: 0.15, duration: 400, ease: 'Back.easeOut', onComplete: () => { this.tweens.add({ targets: item, y: item.y - 8, duration: 1200, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' }); } });
+        this.tweens.add({ targets: item, scale: 1, duration: 400, ease: 'Back.easeOut', onComplete: () => { this.tweens.add({ targets: item, y: item.y - 8, duration: 1200, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' }); } });
         this.materials.add(item);
     }
 

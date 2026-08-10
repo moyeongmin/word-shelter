@@ -282,13 +282,14 @@ export default class CaveScene extends Phaser.Scene {
 
         const item = this.physics.add.sprite(spawnX, spawnY, textureKey);
         item.name = itemName;
-        item.setScale(0); 
+        item.setScale(0); // 0에서 시작해서 팡 커지게 설정
 
-        // 단축 속성(scale) 대신 scaleX, scaleY를 명시적으로 분리해서 확실하게 쪼그라들게 적용!
+        // 🌟 32x32 아이콘이 큼직하게 보이도록 scale을 1.5 ~ 2로 설정합니다.
+        const finalScale = 0.7; // 원하시는 크기에 따라 1.5 ~ 2.2 사이로 조절 가능합니다!
+
         this.tweens.add({ 
             targets: item, 
-            scaleX: targetScale, 
-            scaleY: targetScale, 
+            scale: finalScale, // 단축 속성 하나로 통일하여 확실하게 키움!
             duration: 400, 
             ease: 'Back.easeOut',
             onComplete: () => {
