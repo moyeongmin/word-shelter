@@ -4,6 +4,7 @@ import mapBg from '/assets/images/forest_map.png';
 import woodImg from '/assets/images/wood.png';
 import sandImg from '/assets/images/sand.png';
 import windImg from '/assets/images/wind.png';
+import powerImg from '/assets/images/power.png'
 
 import { preloadPlayerAssets, createPlayerAnims, updatePlayerMovement } from '../features/player/playerUtils';
 import { preloadSounds, playBGM } from '../features/sound/soundUtils';
@@ -67,6 +68,10 @@ export default class NorthForestScene extends Phaser.Scene {
         this.load.image(
             'forest_sand',
             sandImg
+        );
+        this.load.image(
+            `power`,
+            powerImg
         );
 
         // BaseCamp / Cave와 동일한 플레이어
@@ -1464,44 +1469,12 @@ export default class NorthForestScene extends Phaser.Scene {
         ) {
             return;
         }
-
-        // ==========================================
-        // TODO: 추후 실제 AI 부품 이미지로 교체
-        // ==========================================
-        if (!this.textures.exists('item_ai_core_temp')) {
-            const g = this.make.graphics({ x: 0, y: 0, add: false });
-
-            g.fillStyle(0x263238, 1);
-            g.fillRoundedRect(4, 8, 40, 32, 5);
-
-            g.fillStyle(0x00ffcc, 1);
-            g.fillCircle(24, 24, 9);
-
-            g.fillStyle(0xffffff, 1);
-            g.fillCircle(21, 21, 3);
-
-            g.fillStyle(0x78909c, 1);
-            g.fillRect(0, 17, 7, 14);
-            g.fillRect(41, 17, 7, 14);
-
-            g.generateTexture('item_ai_core_temp', 48, 48);
-            g.destroy();
-        }
-
-        // ==========================================
-        // NorthForest 북쪽
-        //
-        // TODO: 실제 맵 크기에 맞춰 x 좌표만 조정
-        // y는 북쪽이므로 작은 값
-        // ==========================================
         const bg = this.children.getByName?.('background');
-
         const worldWidth = this.physics.world.bounds.width;
-
         this.lostAiPart = this.physics.add.sprite(
             worldWidth / 2,
             90,
-            'item_ai_core_temp'
+            'power'
         );
 
         this.lostAiPart.setScale(0.9);

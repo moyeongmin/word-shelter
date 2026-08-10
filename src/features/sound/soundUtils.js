@@ -7,6 +7,7 @@ export function preloadSounds(scene) {
     // BGM
     scene.load.audio('bgm_travel', 'assets/sounds/bgm_travel.mp3');
     scene.load.audio('bgm_ending', 'assets/sounds/bgm_ending.mp3');
+    scene.load.audio('bgm_mainmenu', 'assets/sounds/bgm_mainmenu.mp3')
 
     // SFX (효과음)
     scene.load.audio('sfx_get_item', 'assets/sounds/sfx_get_item.mp3');

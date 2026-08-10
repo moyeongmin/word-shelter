@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { preloadSounds, playBGM } from '../features/sound/soundUtils';
 
 export default class MainMenuScene extends Phaser.Scene {
     constructor() {
@@ -6,7 +7,7 @@ export default class MainMenuScene extends Phaser.Scene {
     }
 
     create() {
-        console.log('🏠 MainMenuScene create 실행');
+        playBGM(this, 'bgm_mainmenu', 0.4);
 
         this.cameras.main.setBackgroundColor('#02060b');
 
@@ -54,6 +55,10 @@ export default class MainMenuScene extends Phaser.Scene {
                 this.resetLocalData();
             };
         }
+    }
+
+    preload() {
+        preloadSounds(this);
     }
 
     // ⭐ 커스텀 Confirm 모달을 띄우고 Promise를 반환하는 헬퍼 메서드
