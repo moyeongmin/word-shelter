@@ -611,23 +611,52 @@ button:active { transform: scale(0.95); }
 @keyframes main-menu-glow { 0%,100% { text-shadow:0 0 8px rgba(0,255,255,0.6),0 0 20px rgba(0,255,255,0.2); } 50% { text-shadow:0 0 12px rgba(0,255,255,0.95),0 0 32px rgba(0,255,255,0.4); } }
 
 /* 갤러리 ui */
-.gallery-screen { position:absolute; inset:0; z-index:50000; overflow-y:auto; background:radial-gradient(circle at 50% 20%,#0a1b24 0%,#050b12 45%,#010305 100%); color:#dffafa; }
-.gallery-screen.hidden { display:none; }
-.gallery-container { width:min(1400px,94vw); margin:0 auto; padding:38px 0 70px; }
+.gallery-screen { position:fixed; inset:0; z-index:50000; overflow-y:auto; background:radial-gradient(circle at 50% 10%,#0b1c26 0%,#050b12 38%,#010305 100%); color:#dffafa; pointer-events:auto; }
+.gallery-screen.hidden { display:none; pointer-events:none; }
+.gallery-container { width:100%; min-height:100vh; padding:32px 38px 60px; box-sizing:border-box; }
 .gallery-header { display:flex; align-items:flex-end; justify-content:space-between; gap:30px; }
-.gallery-title { margin:8px 0 0; color:#00ffff; font-size:2.4rem; text-shadow:0 0 14px rgba(0,255,255,0.5); }
-.gallery-system-text { color:#627e89; font-size:0.75rem; letter-spacing:2px; }
-.gallery-back-btn { padding:12px 18px; border:2px solid #008c98; background:#06131c; color:#00ffff; font-family:inherit; cursor:pointer; transition:0.15s ease; }
-.gallery-back-btn:hover { border-color:#00ffff; background:#07303a; box-shadow:0 0 14px rgba(0,255,255,0.22); transform:translateX(-3px); }
-.gallery-divider { height:2px; margin:22px 0 30px; background:linear-gradient(90deg,#00ffff,rgba(0,255,255,0.05)); }
-.gallery-list { display:grid; grid-template-columns:repeat(auto-fill,minmax(290px,1fr)); gap:22px; }
-.gallery-card { overflow:hidden; background:#061019; border:1px solid #086d78; cursor:pointer; transition:transform 0.15s ease,border-color 0.15s ease,box-shadow 0.15s ease; }
-.gallery-card:hover { transform:translateY(-4px); border-color:#00ffff; box-shadow:0 0 22px rgba(0,255,255,0.14); }
-.gallery-card-image-wrap { width:100%; aspect-ratio:1/1; overflow:hidden; background:#02060b; }
-.gallery-card-image { width:100%; height:100%; object-fit:cover; display:block; }
-.gallery-card-content { padding:16px; }
-.gallery-card-number { margin-bottom:9px; color:#00ffff; font-size:1.15rem; }
-.gallery-card-materials { min-height:36px; margin-bottom:12px; color:#7faab1; font-size:0.77rem; line-height:1.45; }
-.gallery-card-story { display:-webkit-box; overflow:hidden; color:#d3e5e7; font-size:0.88rem; line-height:1.55; -webkit-line-clamp:3; -webkit-box-orient:vertical; }
-.gallery-card-footer { display:flex; justify-content:space-between; margin-top:15px; padding-top:11px; border-top:1px solid #12343d; color:#789ba1; font-size:0.78rem; }
-.gallery-loading,.gallery-empty { grid-column:1/-1; padding:80px 20px; text-align:center; color:#678890; }
+.gallery-system-text { color:#536d78; font-size:0.72rem; letter-spacing:2px; }
+.gallery-title { margin:7px 0 0; color:#00ffff; font-size:2.5rem; text-shadow:0 0 12px rgba(0,255,255,0.5); }
+.gallery-header-actions { display:flex; align-items:center; gap:12px; }
+.gallery-sort { min-width:125px; padding:11px 14px; border:2px solid #067783; background:#04121a; color:#00ffff; font-family:NeoDunggeunmo,sans-serif; cursor:pointer; outline:none; }
+.gallery-back-btn { padding:11px 17px; border:2px solid #067783; background:#04121a; color:#8cb8bd; font-family:NeoDunggeunmo,sans-serif; cursor:pointer; transition:0.15s ease; }
+.gallery-back-btn:hover { color:#00ffff; border-color:#00ffff; background:#07303a; box-shadow:0 0 15px rgba(0,255,255,0.2); transform:translateX(-3px); }
+.gallery-divider { height:2px; margin:22px 0 28px; background:linear-gradient(90deg,#00ffff 0%,rgba(0,255,255,0.1) 70%,transparent); }
+.gallery-list { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:18px; align-items:start; }
+.gallery-card { overflow:hidden; background:#101b27; border:1px solid #284052; border-radius:10px; cursor:pointer; transition:transform 0.15s ease,border-color 0.15s ease,box-shadow 0.15s ease; }
+.gallery-card:hover { transform:translateY(-5px); border-color:#00ffff; box-shadow:0 0 22px rgba(0,255,255,0.13); }
+.gallery-card-header { display:flex; justify-content:space-between; align-items:center; min-height:27px; padding:0 3px 7px; color:#ffffff; font-size:0.9rem; }
+.gallery-card-image-wrap { width:100%; aspect-ratio:1/1; overflow:hidden; border-radius:7px; background:#ffffff; }
+.gallery-card-image { width:100%; height:100%; display:block; object-fit:cover; }
+.gallery-card-materials { margin-top:11px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; color:#819aaa; font-size:0.74rem; }
+.gallery-card-story { min-height:91px; margin-top:10px; display:-webkit-box; overflow:hidden; color:#f1f5f7; font-size:0.84rem; line-height:1.55; -webkit-line-clamp:4; -webkit-box-orient:vertical; }
+.gallery-card-footer { display:flex; justify-content:flex-start; margin-top:13px; }
+.gallery-card-like { padding:9px 13px; border:0; border-radius:7px; background:#223245; color:#ffffff; font-family:inherit; font-weight:bold; cursor:pointer; transition:0.15s ease; }
+.gallery-card-like:hover { background:#30465e; color:#ff4d82; transform:translateY(-1px); }
+.gallery-loading,.gallery-empty,.gallery-error { grid-column:1/-1; padding:90px 20px; color:#637f89; text-align:center; }
+
+.gallery-detail-modal { position:fixed; inset:0; z-index:900000; display:flex; align-items:center; justify-content:center; padding:35px; background:rgba(0,4,8,0.88); backdrop-filter:blur(6px); pointer-events:auto; }
+.gallery-detail-modal.hidden { display:none; }
+.gallery-detail-panel { position:relative; width:min(1180px,94vw); max-height:88vh; overflow:auto; padding:28px; border:2px solid #00d9e3; background:#061019; box-shadow:0 0 36px rgba(0,255,255,0.18); }
+.gallery-detail-close { position:absolute; top:14px; right:14px; z-index:4; width:42px; height:42px; border:1px solid #ff2468; background:#29101c; color:#ff4580; font-size:1rem; cursor:pointer; }
+.gallery-detail-close:hover { background:#ff2468; color:#ffffff; }
+.gallery-detail-layout { display:grid; grid-template-columns:minmax(0,1.05fr) minmax(330px,0.95fr); gap:35px; align-items:start; }
+.gallery-detail-image-area { display:flex; align-items:center; justify-content:center; min-height:500px; background:#02080d; border:1px solid #154653; }
+.gallery-detail-image { width:100%; max-height:650px; object-fit:contain; display:block; }
+.gallery-detail-info { padding:10px 7px; }
+.gallery-detail-number { color:#00ffff; font-size:2rem; text-shadow:0 0 10px rgba(0,255,255,0.42); }
+.gallery-detail-owner { margin-top:7px; margin-bottom:27px; color:#839fa8; font-size:0.9rem; }
+.gallery-detail-section-title { margin:21px 0 10px; padding-bottom:7px; border-bottom:1px solid #15515a; color:#00dbe3; font-size:0.78rem; letter-spacing:1.4px; }
+.gallery-detail-story { max-height:250px; overflow-y:auto; padding-right:10px; color:#e0ebed; font-size:1rem; line-height:1.75; }
+.gallery-detail-materials { display:flex; flex-wrap:wrap; gap:8px; }
+.gallery-material-chip { padding:7px 11px; border:1px solid #087b86; background:#081d25; color:#aeeef0; font-size:0.78rem; }
+.gallery-detail-footer { margin-top:27px; }
+.gallery-detail-like { padding:11px 18px; border:1px solid #3a4c5c; border-radius:7px; background:#172638; color:#ffffff; font-family:inherit; font-weight:bold; cursor:pointer; }
+.gallery-detail-like:hover { border-color:#ff3d75; color:#ff6390; background:#271522; }
+
+@media (max-width:800px) { .gallery-detail-layout { grid-template-columns:1fr; } .gallery-detail-image-area { min-height:300px; } .gallery-header { align-items:flex-start; flex-direction:column; } }
+
+/* 데이터 초기화 버튼 */
+.main-menu-reset-btn { position:absolute; left:24px; bottom:20px; padding:9px 13px; border:1px solid #5d2639; background:rgba(24,8,15,0.82); color:#8f5d6d; font-family:NeoDunggeunmo,sans-serif; font-size:0.72rem; letter-spacing:1px; cursor:pointer; pointer-events:auto; transition:0.15s ease; }
+.main-menu-reset-btn:hover { border-color:#ff3366; color:#ff5c87; background:rgba(60,10,28,0.92); box-shadow:0 0 12px rgba(255,0,85,0.22); }
+.main-menu-reset-btn:active { transform:translateY(1px); }

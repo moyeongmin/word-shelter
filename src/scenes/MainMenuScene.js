@@ -14,6 +14,7 @@ export default class MainMenuScene extends Phaser.Scene {
         const hudContainer = document.getElementById('hud-container');
         const questHud = document.getElementById('quest-hud-box');
         const alchemyDesk = document.getElementById('alchemy-desk-screen');
+        const resetStorageButton = document.getElementById('reset-storage-btn');
 
         mainMenuScreen?.classList.remove('hidden');
         hudContainer?.classList.add('hidden');
@@ -50,5 +51,6 @@ export default class MainMenuScene extends Phaser.Scene {
                 this.scene.start('GalleryScene');
             };
         }
+        
     }
 }

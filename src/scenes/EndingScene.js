@@ -1614,12 +1614,6 @@ createEndingScreen() {
         });
     }
     goToGallery() {
-        const houseId = this.generatedHouse?.house_id;
-        const url = new URL('/gallery', window.location.origin);
-        if (houseId) {
-            url.searchParams.set('house', houseId);
-        }
-        console.log('🖼️ 갤러리 이동:', url.toString());
-        window.location.href = url.toString();
+        this.scene.start('GalleryScene');
     }
 }

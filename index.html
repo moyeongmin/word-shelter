@@ -37,25 +37,60 @@
                         </button>
                     </div>
                 </div>
+                <button id="reset-storage-btn" class="main-menu-reset-btn">데이터 초기화</button>
             </div>
-           <div id="gallery-screen" class="gallery-screen hidden">
+            <div id="gallery-screen" class="gallery-screen hidden">
                 <div class="gallery-container">
                     <header class="gallery-header">
                         <div>
-                            <div class="gallery-system-text">WORD SHELTER // ARCHIVE</div>
-                            <h1 class="gallery-title">안식처 갤러리</h1>
+                            <div class="gallery-system-text">WORD SHELTER // SHELTER ARCHIVE</div>
+                            <h1 class="gallery-title">갤러리</h1>
                         </div>
 
-                        <button id="gallery-back-btn" class="gallery-back-btn">← 메인 메뉴</button>
+                        <div class="gallery-header-actions">
+                            <select id="gallery-sort" class="gallery-sort">
+                                <option value="latest">최신순</option>
+                                <option value="likes">좋아요순</option>
+                            </select>
+
+                            <button id="gallery-back-btn" class="gallery-back-btn">← 돌아가기</button>
+                        </div>
                     </header>
 
                     <div class="gallery-divider"></div>
 
                     <div id="gallery-list" class="gallery-list">
-                        <div class="gallery-loading">안식처 기록을 불러오는 중...</div>
+                        <div class="gallery-loading"> 기록을 불러오는 중...</div>
                     </div>
                 </div>
-            </div> 
+            </div>
+
+            <div id="gallery-detail-modal" class="gallery-detail-modal hidden">
+                <div class="gallery-detail-panel">
+                    <button id="gallery-detail-close" class="gallery-detail-close">✕</button>
+
+                    <div class="gallery-detail-layout">
+                        <div class="gallery-detail-image-area">
+                            <img id="gallery-detail-image" class="gallery-detail-image" src="" alt="안식처 이미지">
+                        </div>
+
+                        <div class="gallery-detail-info">
+                            <div id="gallery-detail-number" class="gallery-detail-number">ENDING #0</div>
+                            <div id="gallery-detail-owner" class="gallery-detail-owner">WS</div>
+
+                            <div class="gallery-detail-section-title">SHELTER STORY</div>
+                            <div id="gallery-detail-story" class="gallery-detail-story"></div>
+
+                            <div class="gallery-detail-section-title">MATERIALS</div>
+                            <div id="gallery-detail-materials" class="gallery-detail-materials"></div>
+
+                            <div class="gallery-detail-footer">
+                                <button id="gallery-detail-like" class="gallery-detail-like">♥ 좋아요 <span id="gallery-detail-like-count">0</span></button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
             
 
