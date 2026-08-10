@@ -181,7 +181,7 @@ export default class HouseMaterialSubmission {
         const validMaterials = submittedMaterials.filter(name => dbMaterials.some(m => m.name === name));
         const finalMaterials = validMaterials.length === 10 ? validMaterials : ['불', '물', '나무', '돌', '흙', '불', '물', '나무', '돌', '흙'];
 
-        const initials = this.scene.registry.get('playerInitials') || 'WS';
+        const initials = this.scene.registry.get('playerInitials') || '주인공';
         const comboCount = this.scene.registry.get('comboCount') || 0;
 
         requestHouseGeneration(finalMaterials, { initials, comboCount })
