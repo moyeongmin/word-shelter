@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { preloadPlayerAssets, createPlayerAnims, updatePlayerMovement } from '../features/player/playerUtils';
 
 export default class Camp2CaveScene extends Phaser.Scene {
     constructor() {
@@ -9,6 +10,8 @@ export default class Camp2CaveScene extends Phaser.Scene {
     preload() {
         this.load.image('bg_camp2cave', 'assets/images/Camp2Cave.png');
         this.load.image('player_asset', 'assets/images/player.png');
+
+        preloadPlayerAssets(this);
     }
 
     init(data) {
@@ -69,26 +72,33 @@ export default class Camp2CaveScene extends Phaser.Scene {
         }
 
         this.player = this.physics.add.sprite(startX, startY, 'player_asset');
-        this.player.setScale(0.25);
+        this.player.setScale(0.15);
         this.player.body.setCollideWorldBounds(true);
 
         // 플레이어 히트박스 설정
-        const hitBoxWidth = this.player.width * 0.25;
-        const hitBoxHeight = 30; 
+        const hitBoxWidth = 140;  // 발 폭 넓이
+        const hitBoxHeight = 70;  // 발 높이 두께
         this.player.body.setSize(hitBoxWidth, hitBoxHeight); 
 
-        const offsetX = this.player.width * 0.38; 
-        const offsetY = this.player.height - 110;  
+        // X축 오프셋: (원본너비 375 - 박스너비 140) / 2 = 117.5 (정중앙 정렬)
+        const offsetX = (375 - hitBoxWidth) / 2; 
+        
+        // Y축 오프셋: (원본높이 666 - 박스높이 70) - 여유 공간 = 맨 아래 발바닥 위치
+        const offsetY = 666 - hitBoxHeight - 15;
         this.player.body.setOffset(offsetX, offsetY);
 
         // 플레이어와 벽 충돌 판정 연결
         this.physics.add.collider(this.player, this.obstacles);
         
         this.cameras.main.startFollow(this.player, true, 0.08, 0.08);
+
+        createPlayerAnims(this); // player 애니메이션 생성
         this.keys = this.input.keyboard.addKeys('W,A,S,D,F');
     }
 
     update() {
+
+        updatePlayerMovement(this.player, this.keys, this.playerSpeed); // player 이동 및 애니메이션 처리
         let vx = 0, vy = 0;
         if (this.keys.A.isDown) vx = -this.playerSpeed; else if (this.keys.D.isDown) vx = this.playerSpeed;
         if (this.keys.W.isDown) vy = -this.playerSpeed; else if (this.keys.S.isDown) vy = this.playerSpeed;

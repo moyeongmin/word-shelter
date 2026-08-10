@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { preloadPlayerAssets, createPlayerAnims, updatePlayerMovement } from '../features/player/playerUtils';
 
 export default class CaveScene extends Phaser.Scene {
     constructor() {
@@ -12,6 +13,8 @@ export default class CaveScene extends Phaser.Scene {
         this.load.image('item_iron', 'assets/images/item_iron.png');
         this.load.image('item_stone', 'assets/images/item_stone.png');
         this.load.image('item_earth', 'assets/images/item_earth.png');
+
+        preloadPlayerAssets(this);
     }
 
     init(data) {
@@ -65,33 +68,43 @@ export default class CaveScene extends Phaser.Scene {
             this.obstacles.add(wall);
         });
 
-
-        // 4. 플레이어 스폰
+        // 3. 플레이어 스폰 위치 결정
         let startX = 100;
         let startY = 100; 
 
         if (this.spawnFrom === 'Camp2Cave') {
-            startX = 80; // 포탈 근처로 시작 위치 살짝 조정
+            startX = 80; 
             startY = 80;
         }
 
-        this.player = this.physics.add.sprite(startX, startY, 'player_asset');
-        this.player.setScale(0.13); 
+        // 🌟 1. 생성할 때 기본 이미지를 char_walk_front1로 지정
+        this.player = this.physics.add.sprite(startX, startY, 'char_walk_front1');
+        
+        // 🌟 2. 스케일을 0.25로 통일 (너무 작으면 0.2 ~ 0.3 사이 조절)
+        this.player.setScale(0.08); 
         this.player.body.setCollideWorldBounds(true);
 
-        // 🌟 발밑으로 충돌 범위(Hitbox) 축소 (다른 맵들과 완벽히 동일한 수치)
-        const hitBoxWidth = this.player.width * 0.25;
-        const hitBoxHeight = 30; 
+        // ==========================================
+        // 🌟 3. 375x666 원본 해상도 기준 '정밀 발밑' 히트박스 세팅
+        // ==========================================
+        const hitBoxWidth = 140;  // 발 폭 넓이
+        const hitBoxHeight = 70;  // 발 높이 두께
         this.player.body.setSize(hitBoxWidth, hitBoxHeight); 
 
-        const offsetX = this.player.width * 0.38; 
-        const offsetY = this.player.height - 110;  
+        // X축 오프셋: (원본너비 375 - 박스너비 140) / 2 = 117.5 (좌우 정중앙)
+        const offsetX = (375 - hitBoxWidth) / 2; 
+        
+        // Y축 오프셋: 666(원본높이) - 70(박스높이) - 15(미세 여유공간) = 581 (발바닥 위치)
+        const offsetY = 666 - hitBoxHeight - 15; 
+        
         this.player.body.setOffset(offsetX, offsetY);
 
 
         // 5. 충돌 및 카메라 설정
         this.physics.add.collider(this.player, this.obstacles);
         this.cameras.main.startFollow(this.player, true, 0.08, 0.08);
+
+        createPlayerAnims(this);
 
         this.keys = this.input.keyboard.addKeys('W,A,S,D,F');
 
@@ -193,6 +206,9 @@ export default class CaveScene extends Phaser.Scene {
     }
 
     update() {
+
+        updatePlayerMovement(this.player, this.keys, this.playerSpeed);
+
         let vx = 0, vy = 0;
         if (this.keys.A.isDown) vx = -this.playerSpeed; else if (this.keys.D.isDown) vx = this.playerSpeed;
         if (this.keys.W.isDown) vy = -this.playerSpeed; else if (this.keys.S.isDown) vy = this.playerSpeed;

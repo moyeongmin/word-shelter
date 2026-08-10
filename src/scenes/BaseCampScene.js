@@ -5,6 +5,8 @@ import TimeLapseSequence from '../features/ending/TimeLapseSequence.js';
 import QuestManager from '../features/quest/QuestManager';
 import { waitForHouseGeneration } from '../api/houseGeneration';
 
+import { preloadPlayerAssets, createPlayerAnims, updatePlayerMovement } from '../features/player/playerUtils';
+
 export default class BaseCampScene extends Phaser.Scene {
     constructor() {
         super('BaseCampScene');
@@ -27,6 +29,8 @@ export default class BaseCampScene extends Phaser.Scene {
         this.load.image('item_water', 'assets/images/item_water.png');
 
         this.load.image('cutscene_3', 'assets/images/StartScene3.png');
+
+        preloadPlayerAssets(this);
     }
 
     // 🌟 1. 확실한 데이터 저장 함수
@@ -176,11 +180,27 @@ export default class BaseCampScene extends Phaser.Scene {
         if (this.spawnFrom === 'Camp2Cave') { startX = bg.width - 50; startY = bg.height / 2; } 
         else if (this.spawnFrom === 'NorthSide') { startX = bg.width / 2; startY = 80; }
         
-        this.player = this.physics.add.sprite(startX, startY, 'player_asset'); 
-        this.player.setScale(0.15); 
+        // 🌟 1. 플레이어 생성 (기본 에셋은 char_walk_front1 지정)
+        this.player = this.physics.add.sprite(startX, startY, 'char_walk_front1'); 
+        
+        // 🌟 2. 스케일 설정 (너무 크다면 0.2 ~ 0.25 사이로 조절하세요)
+        this.player.setScale(0.1); 
         this.player.body.setCollideWorldBounds(true);
-        this.player.body.setSize(this.player.width * 0.25, 30); 
-        this.player.body.setOffset(this.player.width * 0.38, this.player.height - 110);
+
+        // ==========================================
+        // 🌟 3. 375x666 원본 기준 '정밀 발밑 히트박스' 세팅
+        // ==========================================
+        const hitBoxWidth = 140;  // 발 폭 넓이
+        const hitBoxHeight = 70;  // 발 높이 두께
+        this.player.body.setSize(hitBoxWidth, hitBoxHeight); 
+
+        // X축 오프셋: (원본너비 375 - 박스너비 140) / 2 = 117.5 (정중앙 정렬)
+        const offsetX = (375 - hitBoxWidth) / 2; 
+        
+        // Y축 오프셋: (원본높이 666 - 박스높이 70) - 여유 공간 = 맨 아래 발바닥 위치
+        const offsetY = 666 - hitBoxHeight - 15; 
+        
+        this.player.body.setOffset(offsetX, offsetY);
 
         const tableX = bg.width / 2;
         const tableY = bg.height / 2;
@@ -238,6 +258,8 @@ export default class BaseCampScene extends Phaser.Scene {
         this.physics.add.collider(this.player, this.debugBoundaries);
 
         this.cameras.main.startFollow(this.player, true, 0.08, 0.08);
+
+        createPlayerAnims(this);
         this.keys = this.input.keyboard.addKeys('W,A,S,D,F,ESC,T');
 
         // DOM 바인딩
@@ -547,6 +569,8 @@ export default class BaseCampScene extends Phaser.Scene {
             this.player.body.setVelocity(0, 0); return; 
         }
         
+        updatePlayerMovement(this.player, this.keys, this.playerSpeed);
+
         let vx = 0, vy = 0;
         if (this.keys.A.isDown) vx = -this.playerSpeed; else if (this.keys.D.isDown) vx = this.playerSpeed;
         if (this.keys.W.isDown) vy = -this.playerSpeed; else if (this.keys.S.isDown) vy = this.playerSpeed;
