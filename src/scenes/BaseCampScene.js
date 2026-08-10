@@ -361,12 +361,6 @@ export default class BaseCampScene extends Phaser.Scene {
         const goMainMenuBtn = document.getElementById('go-main-menu-btn');
         if (goMainMenuBtn) {
         goMainMenuBtn.onclick = () => {
-                const confirmed = window.confirm(
-                    '메인 메뉴로 이동하시겠습니까?\n현재 진행 상황은 저장됩니다.'
-                );
-
-                if (!confirmed) return;
-
                 if (typeof this.saveGame === 'function') {
                     this.saveGame();
                 }
