@@ -47,22 +47,26 @@ export default class HouseMaterialSubmission {
     }
     openModal() {
         if (this.modal) {
-
             document.body.appendChild(this.modal);
-            
-            this.modal.classList.remove('hidden'); // 이 코드가 반드시 실행되어야 합니다!
+            this.modal.classList.remove('hidden'); 
             console.log("🏠 건축 재료 선택 모달 오픈!");
         } else {
             console.error("❌ #house-select-modal 요소를 HTML에서 찾을 수 없습니다.");
         }
+
+        // 건축 재료 선택 중임을 엔진에 알림
+        this.scene.registry.set('isHouseSelecting', true);
+
         this.renderDiscoveredList();
         this.renderSlots();
     }
 
     closeModal() {
         if (this.modal) this.modal.classList.add('hidden');
-    }
 
+        // 모달이 닫히면 상태 해제
+        this.scene.registry.set('isHouseSelecting', false);
+    }
     // 🌟 좌측: 도감(discoveredWords) 목록 렌더링
     renderDiscoveredList() {
         if (!this.discoveredListContainer) return;
