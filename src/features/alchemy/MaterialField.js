@@ -1,3 +1,5 @@
+import { playSFX } from '../sound/soundUtils';
+
 export default class MaterialField {
     constructor(scene, ui) {
         this.scene = scene;
@@ -236,6 +238,7 @@ export default class MaterialField {
             if (loadingLock) loadingLock.classList.remove('hidden');
 
             try {
+                playSFX(this.scene, 'sfx_mix', 0.6);
                 inventory[draggedWord] -= 1;
                 inventory[word] -= 1;
                 if (inventory[draggedWord] <= 0) delete inventory[draggedWord];

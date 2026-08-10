@@ -6,6 +6,8 @@ import sandImg from '/assets/images/sand.png';
 import windImg from '/assets/images/wind.png';
 
 import { preloadPlayerAssets, createPlayerAnims, updatePlayerMovement } from '../features/player/playerUtils';
+import { preloadSounds, playBGM } from '../features/sound/soundUtils';
+import { playSFX } from '../features/sound/soundUtils';
 
 export default class NorthForestScene extends Phaser.Scene {
     constructor() {
@@ -76,6 +78,7 @@ export default class NorthForestScene extends Phaser.Scene {
         }
 
         preloadPlayerAssets(this);
+        preloadSounds(this);
     }
 
     // ==========================================
@@ -100,6 +103,8 @@ export default class NorthForestScene extends Phaser.Scene {
     }
 
     create() {
+        playBGM(this, 'bgm_travel', 0.4);
+
         // ==========================================
         // 1. 배경 / 월드
         // ==========================================
@@ -1414,7 +1419,7 @@ export default class NorthForestScene extends Phaser.Scene {
                                 `✨ [${material.name}] 획득! ` +
                                 `(보유량: ${this.wordInventory[material.name]}개)`
                             );
-
+                            playSFX(this, 'sfx_get_item', 0.25);
                             material.destroy();
                         }
                     }

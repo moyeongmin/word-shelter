@@ -4,6 +4,8 @@ import LostPartQuest from '../features/quest/LostPartQuest.js';
 import TimeLapseSequence from '../features/ending/TimeLapseSequence.js';
 import QuestManager from '../features/quest/QuestManager';
 import { waitForHouseGeneration } from '../api/houseGeneration';
+import { preloadSounds, playBGM } from '../features/sound/soundUtils';
+import { playSFX } from '../features/sound/soundUtils';
 
 import { preloadPlayerAssets, createPlayerAnims, updatePlayerMovement } from '../features/player/playerUtils';
 
@@ -31,6 +33,7 @@ export default class BaseCampScene extends Phaser.Scene {
         this.load.image('cutscene_3', 'assets/images/StartScene3.png');
 
         preloadPlayerAssets(this);
+        preloadSounds(this);
     }
 
     // 🌟 1. 확실한 데이터 저장 함수
@@ -139,6 +142,8 @@ export default class BaseCampScene extends Phaser.Scene {
     get repYield() { return 1 + this.upgrades.yield; }
 
     create() {
+        playBGM(this, 'bgm_travel', 0.4);
+
         this.fetchGameDataFromDB();
 
         // 브라우저가 화면 맨땅에 텍스트를 뱉는 기본 동작 전역 차단
@@ -589,7 +594,7 @@ export default class BaseCampScene extends Phaser.Scene {
                     const effectColor = mat.colorHex || mat.color || '#ffffff';
                     this.createPickupBurst(mat.x, mat.y, effectColor);
                     this.showFloatingText(mat.x, mat.y, `+ ${mat.name}`, effectColor);
-
+                    playSFX(this, 'sfx_get_item', 0.25);
                     mat.destroy(); 
                     this.saveGameData();
                 }

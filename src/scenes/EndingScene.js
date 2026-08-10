@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { preloadSounds, playBGM } from '../features/sound/soundUtils';
 
 export default class EndingScene extends Phaser.Scene {
     constructor() {
@@ -40,6 +41,8 @@ export default class EndingScene extends Phaser.Scene {
         this.load.image('ai_cat_sleep1', 'assets/images/ai_cat_sleep1.png');
         this.load.image('ai_cat_sleep2', 'assets/images/ai_cat_sleep2.png');
         this.load.image('ai_cat_sleep3', 'assets/images/ai_cat_sleep3.png');
+        
+        preloadSounds(this);
 
         if (!this.houseImageUrl) return;
 
@@ -50,6 +53,7 @@ export default class EndingScene extends Phaser.Scene {
     }
 
     create() {
+        playBGM(this, 'bgm_ending', 0.4);
         const { width, height } = this.scale;
 
         this.cameras.main.setBackgroundColor('#080c10');
@@ -110,7 +114,7 @@ export default class EndingScene extends Phaser.Scene {
 
         // 고양이 이미지 스프라이트 생성 (초기값: sleep1)
         this.catSprite = this.add.image(0, 0, 'ai_cat_sleep1')
-            .setScale(2.5) // 필요에 따라 크기 조절
+            .setScale(1.5) // 필요에 따라 크기 조절
             .setOrigin(0.5);
 
         this.aiContainer.add([this.catSprite]);

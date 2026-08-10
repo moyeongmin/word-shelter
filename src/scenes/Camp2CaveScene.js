@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { preloadPlayerAssets, createPlayerAnims, updatePlayerMovement } from '../features/player/playerUtils';
+import { preloadSounds, playBGM } from '../features/sound/soundUtils';
 
 export default class Camp2CaveScene extends Phaser.Scene {
     constructor() {
@@ -12,6 +13,7 @@ export default class Camp2CaveScene extends Phaser.Scene {
         this.load.image('player_asset', 'assets/images/player.png');
 
         preloadPlayerAssets(this);
+        preloadSounds(this);
     }
 
     init(data) {
@@ -22,6 +24,9 @@ export default class Camp2CaveScene extends Phaser.Scene {
     get playerSpeed() { return 180 + (this.upgrades.speed * 9); }
 
     create() {
+
+        playBGM(this, 'bgm_travel', 0.4);
+
         // 1. 배경 및 맵 설정
         const bg = this.add.image(0, 0, 'bg_camp2cave').setOrigin(0, 0);
         this.physics.world.setBounds(0, 0, bg.width, bg.height);
