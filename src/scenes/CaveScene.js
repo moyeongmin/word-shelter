@@ -1,4 +1,7 @@
 import Phaser from 'phaser';
+import { preloadPlayerAssets, createPlayerAnims, updatePlayerMovement } from '../features/player/playerUtils';
+import { preloadSounds, playBGM } from '../features/sound/soundUtils';
+import { playSFX } from '../features/sound/soundUtils';
 
 export default class CaveScene extends Phaser.Scene {
     constructor() {
@@ -12,6 +15,9 @@ export default class CaveScene extends Phaser.Scene {
         this.load.image('item_iron', 'assets/images/item_iron.png');
         this.load.image('item_stone', 'assets/images/item_stone.png');
         this.load.image('item_earth', 'assets/images/item_earth.png');
+
+        preloadPlayerAssets(this);
+        preloadSounds(this);
     }
 
     init(data) {
@@ -26,6 +32,8 @@ export default class CaveScene extends Phaser.Scene {
     get playerSpeed() { return 120 + (this.upgrades.speed * 9); }
 
     create() {
+        playBGM(this, 'bgm_travel', 0.4);
+
         // 1. 배경 및 맵 설정
         const bg = this.add.image(0, 0, 'bg_cave').setOrigin(0, 0);
         this.physics.world.setBounds(0, 0, bg.width, bg.height);
@@ -65,33 +73,43 @@ export default class CaveScene extends Phaser.Scene {
             this.obstacles.add(wall);
         });
 
-
-        // 4. 플레이어 스폰
+        // 3. 플레이어 스폰 위치 결정
         let startX = 100;
         let startY = 100; 
 
         if (this.spawnFrom === 'Camp2Cave') {
-            startX = 80; // 포탈 근처로 시작 위치 살짝 조정
+            startX = 80; 
             startY = 80;
         }
 
-        this.player = this.physics.add.sprite(startX, startY, 'player_asset');
-        this.player.setScale(0.13); 
+        // 🌟 1. 생성할 때 기본 이미지를 char_walk_front1로 지정
+        this.player = this.physics.add.sprite(startX, startY, 'char_walk_front1');
+        
+        // 🌟 2. 스케일을 0.25로 통일 (너무 작으면 0.2 ~ 0.3 사이 조절)
+        this.player.setScale(0.08); 
         this.player.body.setCollideWorldBounds(true);
 
-        // 🌟 발밑으로 충돌 범위(Hitbox) 축소 (다른 맵들과 완벽히 동일한 수치)
-        const hitBoxWidth = this.player.width * 0.25;
-        const hitBoxHeight = 30; 
+        // ==========================================
+        // 🌟 3. 375x666 원본 해상도 기준 '정밀 발밑' 히트박스 세팅
+        // ==========================================
+        const hitBoxWidth = 140;  // 발 폭 넓이
+        const hitBoxHeight = 70;  // 발 높이 두께
         this.player.body.setSize(hitBoxWidth, hitBoxHeight); 
 
-        const offsetX = this.player.width * 0.38; 
-        const offsetY = this.player.height - 110;  
+        // X축 오프셋: (원본너비 375 - 박스너비 140) / 2 = 117.5 (좌우 정중앙)
+        const offsetX = (375 - hitBoxWidth) / 2; 
+        
+        // Y축 오프셋: 666(원본높이) - 70(박스높이) - 15(미세 여유공간) = 581 (발바닥 위치)
+        const offsetY = 666 - hitBoxHeight - 15; 
+        
         this.player.body.setOffset(offsetX, offsetY);
 
 
         // 5. 충돌 및 카메라 설정
         this.physics.add.collider(this.player, this.obstacles);
         this.cameras.main.startFollow(this.player, true, 0.08, 0.08);
+
+        createPlayerAnims(this);
 
         this.keys = this.input.keyboard.addKeys('W,A,S,D,F');
 
@@ -120,71 +138,114 @@ export default class CaveScene extends Phaser.Scene {
             callback: () => this.spawnItemAround(70, 350, 45, '흙', 'item_earth', 8, 0.04), 
             loop: true 
         });
-        this.spawnLostAiPart();
+    }
+
+    // ==========================================
+    // 🌟 획득 시 파티클 폭발 효과 (에러 방지 완벽판)
+    // ==========================================
+    createPickupBurst(x, y, targetColor) {
+        let colorVal = 0xffffff; // 기본 색상 (흰색)
+        
+        // 문자열('#ff0000')이 들어왔을 때
+        if (typeof targetColor === 'string') {
+            colorVal = Phaser.Display.Color.HexStringToColor(targetColor).color;
+        } 
+        // 숫자(0xff0000)가 들어왔을 때
+        else if (typeof targetColor === 'number') {
+            colorVal = targetColor;
+        }
+
+        this.add.particles(x, y, 'pixel', {
+            tint: colorVal,
+            speed: { min: 50, max: 150 },
+            scale: { start: 1.2, end: 0 },
+            lifespan: 500,
+            blendMode: 'ADD',
+            duration: 100
+        });
+    }
+
+    addDiscoveredWord(word) {
+        // 만약 현재 씬에 discoveredWords 배열이 세팅 안 되어 있다면 전역(Registry)에서 가져오기
+        if (!this.discoveredWords) {
+            this.discoveredWords = this.registry.get('discoveredWords') || [];
+        }
+
+        // 도감에 없는 새로운 단어(재료)라면 배열에 추가
+        if (!this.discoveredWords.includes(word)) {
+            this.discoveredWords.push(word);
+        }
+
+        // 다른 맵으로 이동해도 유지되도록 전역 저장소에 세이브
+        this.registry.set('discoveredWords', this.discoveredWords);
+    }
+
+    // ==========================================
+    // 🌟 획득 시 머리 위 텍스트 팝업 (에러 방지 완벽판)
+    // ==========================================
+    showFloatingText(x, y, message, targetColor) {
+        let fillStr = '#ffffff'; // 기본 색상 (흰색)
+        
+        // 문자열('#ff0000')이 들어왔을 때
+        if (typeof targetColor === 'string') {
+            fillStr = targetColor;
+        } 
+        // 숫자(0xff0000)가 들어왔을 때 변환
+        else if (typeof targetColor === 'number') {
+            fillStr = '#' + targetColor.toString(16).padStart(6, '0');
+        }
+
+        const text = this.add.text(x, y - 20, message, {
+            fontSize: '15px',
+            fill: fillStr,
+            fontStyle: 'bold'
+        }).setOrigin(0.5).setStroke('#000000', 3);
+
+        this.tweens.add({
+            targets: text,
+            y: y - 60,
+            alpha: 0,
+            duration: 1000,
+            onComplete: () => text.destroy()
+        });
     }
 
     update() {
+
+        updatePlayerMovement(this.player, this.keys, this.playerSpeed);
+
         let vx = 0, vy = 0;
         if (this.keys.A.isDown) vx = -this.playerSpeed; else if (this.keys.D.isDown) vx = this.playerSpeed;
         if (this.keys.W.isDown) vy = -this.playerSpeed; else if (this.keys.S.isDown) vy = this.playerSpeed;
         this.player.body.setVelocity(vx, vy);
 
         if (Phaser.Input.Keyboard.JustDown(this.keys.F)) {
-            //퀘스트용 부품 획득 상호작용
-            if (
-                this.lostAiPart?.active &&
-                Phaser.Math.Distance.BetweenPoints(
-                    this.player,
-                    this.lostAiPart
-                ) < 55
-            ) {
-                const state = this.registry.get('houseBuildState');
-
-                if (state?.quest?.active && !state.quest.partFound) {
-                    state.quest.partFound = true;
-
-                    this.registry.set('houseBuildState', state);
-
-                    console.log('🔧 Cave에서 AI 구동 부품 획득');
-
-                    this.lostAiPart.destroy();
-
-                    const questHud = document.getElementById('quest-hud');
-
-                    if (questHud) {
-                        questHud.innerHTML = `
-                            <div class="quest-hud-type">EMERGENCY QUEST</div>
-                            <div class="quest-hud-title">잃어버린 AI 구동 부품</div>
-                            <div class="quest-hud-description">
-                                부품을 찾았다! BaseCamp의 AI에게 돌아가자.
-                            </div>
-                            <div class="quest-hud-time">✓ 부품 획득 완료</div>
-                        `;
-                    }
-                }
-            }
-
             
             // 🌟 1. 바닥에 떨어진 재료 줍기
-            this.materials.getChildren().forEach((item) => {
-                if (item.active && Phaser.Math.Distance.BetweenPoints(this.player, item) < 50) {
+            this.materials.getChildren().forEach((mat) => {
+                if (mat.active && Phaser.Math.Distance.BetweenPoints(this.player, mat) < 55) {
                     
-                    // 인벤토리 증가 및 도감 등록
-                    this.wordInventory[item.name] = (this.wordInventory[item.name] || 0) + 1;
-                    if (!this.discoveredWords.includes(item.name)) {
-                        this.discoveredWords.push(item.name);
-                    }
-                    
-                    // 글로벌 레지스트리에 데이터 저장 (맵을 이동해도 유지되도록)
+                    // 인벤토리 & 도감 추가
+                    this.wordInventory[mat.name] = (this.wordInventory[mat.name] || 0) + 1;
+                    this.addDiscoveredWord(mat.name);
+
+                    // 글로벌 Registry 동기화
                     this.registry.set('wordInventory', this.wordInventory);
                     this.registry.set('discoveredWords', this.discoveredWords);
 
-                    console.log(`✨ [${item.name}] 획득! (보유량: ${this.wordInventory[item.name]}개)`);
-                    
-                    // 사운드 효과가 있다면 재생
-                    // this.sound.play('sfx_pickup', { volume: 0.5 });
-                    
-                    item.destroy(); 
+                    // 🌟 에러 방지: colorHex가 없으면 color나 기본 흰색('#ffffff') 사용
+                    const effectColor = mat.colorHex || mat.color || '#ffffff';
+
+                    // 획득 이펙트 & 텍스트 띄우기
+                    this.createPickupBurst(mat.x, mat.y, effectColor);
+                    this.showFloatingText(mat.x, mat.y, `+ ${mat.name}`, effectColor);
+
+                    // 즉시 세이브
+                    if (typeof this.saveGameData === 'function') {
+                        this.saveGameData();
+                    }
+                    playSFX(this, 'sfx_get_item', 0.25);
+                    mat.destroy();
                 }
             });
 
@@ -242,13 +303,14 @@ export default class CaveScene extends Phaser.Scene {
 
         const item = this.physics.add.sprite(spawnX, spawnY, textureKey);
         item.name = itemName;
-        item.setScale(0); 
+        item.setScale(0); // 0에서 시작해서 팡 커지게 설정
 
-        // 단축 속성(scale) 대신 scaleX, scaleY를 명시적으로 분리해서 확실하게 쪼그라들게 적용!
+        // 🌟 32x32 아이콘이 큼직하게 보이도록 scale을 1.5 ~ 2로 설정합니다.
+        const finalScale = 0.7; // 원하시는 크기에 따라 1.5 ~ 2.2 사이로 조절 가능합니다!
+
         this.tweens.add({ 
             targets: item, 
-            scaleX: targetScale, 
-            scaleY: targetScale, 
+            scale: finalScale, // 단축 속성 하나로 통일하여 확실하게 키움!
             duration: 400, 
             ease: 'Back.easeOut',
             onComplete: () => {
@@ -264,59 +326,5 @@ export default class CaveScene extends Phaser.Scene {
         });
 
         this.materials.add(item);
-    }
-    spawnLostAiPart() {
-        const state = this.registry.get('houseBuildState');
-
-        if (
-            !state?.quest?.active ||
-            state.quest.completed ||
-            state.quest.partFound
-        ) {
-            return;
-        }
-
-        if (!this.textures.exists('item_ai_core_temp')) {
-            const g = this.make.graphics({ x: 0, y: 0, add: false });
-
-            g.fillStyle(0x263238, 1);
-            g.fillRoundedRect(4, 8, 40, 32, 5);
-
-            g.fillStyle(0x00ffcc, 1);
-            g.fillCircle(24, 24, 9);
-
-            g.fillStyle(0xffffff, 1);
-            g.fillCircle(21, 21, 3);
-
-            g.fillStyle(0x78909c, 1);
-            g.fillRect(0, 17, 7, 14);
-            g.fillRect(41, 17, 7, 14);
-
-            g.generateTexture('item_ai_core_temp', 48, 48);
-            g.destroy();
-        }
-
-        const worldWidth = this.physics.world.bounds.width;
-        const worldHeight = this.physics.world.bounds.height;
-
-        // ==========================================
-        // Cave 남쪽 중앙
-        // ==========================================
-        this.lostAiPart = this.physics.add.sprite(
-            worldWidth / 2,
-            worldHeight - 55,
-            'item_ai_core_temp'
-        );
-
-        this.lostAiPart.setScale(0.9);
-
-        this.tweens.add({
-            targets: this.lostAiPart,
-            y: this.lostAiPart.y - 8,
-            duration: 900,
-            yoyo: true,
-            repeat: -1,
-            ease: 'Sine.easeInOut'
-        });
     }
 }

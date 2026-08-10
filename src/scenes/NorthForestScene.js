@@ -1,9 +1,14 @@
 import Phaser from 'phaser';
 
-import mapBg from '../utils/assets/forest_map.png';
-import woodImg from '../utils/assets/wood.png';
-import sandImg from '../utils/assets/sand.png';
-import windImg from '../utils/assets/wind.png';
+import mapBg from '/assets/images/forest_map.png';
+import woodImg from '/assets/images/wood.png';
+import sandImg from '/assets/images/sand.png';
+import windImg from '/assets/images/wind.png';
+import powerImg from '/assets/images/power.png'
+
+import { preloadPlayerAssets, createPlayerAnims, updatePlayerMovement } from '../features/player/playerUtils';
+import { preloadSounds, playBGM } from '../features/sound/soundUtils';
+import { playSFX } from '../features/sound/soundUtils';
 
 export default class NorthForestScene extends Phaser.Scene {
     constructor() {
@@ -64,6 +69,10 @@ export default class NorthForestScene extends Phaser.Scene {
             'forest_sand',
             sandImg
         );
+        this.load.image(
+            `power`,
+            powerImg
+        );
 
         // BaseCamp / Cave와 동일한 플레이어
         if (!this.textures.exists('player_asset')) {
@@ -72,6 +81,9 @@ export default class NorthForestScene extends Phaser.Scene {
                 'assets/images/player.png'
             );
         }
+
+        preloadPlayerAssets(this);
+        preloadSounds(this);
     }
 
     // ==========================================
@@ -96,6 +108,8 @@ export default class NorthForestScene extends Phaser.Scene {
     }
 
     create() {
+        playBGM(this, 'bgm_travel', 0.4);
+
         // ==========================================
         // 1. 배경 / 월드
         // ==========================================
@@ -122,7 +136,7 @@ export default class NorthForestScene extends Phaser.Scene {
         );
 
         // 필요하면 1.5 등으로 변경
-        this.cameras.main.setZoom(1);
+        this.cameras.main.setZoom(1.5);
 
         // ==========================================
         // 2. 픽셀 파티클 텍스처
@@ -234,7 +248,7 @@ export default class NorthForestScene extends Phaser.Scene {
             );
 
         // CaveScene과 비슷한 크기
-        this.player.setScale(0.15);
+        this.player.setScale(0.09);
 
         this.player.body
             .setCollideWorldBounds(true);
@@ -244,26 +258,17 @@ export default class NorthForestScene extends Phaser.Scene {
         // BaseCamp / Cave와 동일
         // ==========================================
 
-        const hitBoxWidth =
-            this.player.width * 0.25;
+        const hitBoxWidth = 140;  // 발 폭 넓이
+        const hitBoxHeight = 70;  // 발 높이 두께
+        this.player.body.setSize(hitBoxWidth, hitBoxHeight); 
 
-        const hitBoxHeight = 30;
-
-        this.player.body.setSize(
-            hitBoxWidth,
-            hitBoxHeight
-        );
-
-        const offsetX =
-            this.player.width * 0.38;
-
-        const offsetY =
-            this.player.height - 110;
-
-        this.player.body.setOffset(
-            offsetX,
-            offsetY
-        );
+        // X축 오프셋: (원본너비 375 - 박스너비 140) / 2 = 117.5 (정중앙 정렬)
+        const offsetX = (375 - hitBoxWidth) / 2; 
+        
+        // Y축 오프셋: (원본높이 666 - 박스높이 70) - 여유 공간 = 맨 아래 발바닥 위치
+        const offsetY = 666 - hitBoxHeight - 15; 
+        
+        this.player.body.setOffset(offsetX, offsetY);
 
         // ==========================================
         // 7. 장애물 충돌
@@ -284,6 +289,8 @@ export default class NorthForestScene extends Phaser.Scene {
             0.08,
             0.08
         );
+
+        createPlayerAnims(this); // player 애니메이션 생성
 
         // ==========================================
         // 9. 키 입력
@@ -1267,6 +1274,8 @@ export default class NorthForestScene extends Phaser.Scene {
 
         this.updateInteractableOutlines();
 
+        updatePlayerMovement(this.player, this.keys, this.playerSpeed); // playerMovement.js의 updatePlayerMovement 함수 호출
+
         // ==========================================
         // 플레이어 이동
         // ==========================================
@@ -1415,7 +1424,7 @@ export default class NorthForestScene extends Phaser.Scene {
                                 `✨ [${material.name}] 획득! ` +
                                 `(보유량: ${this.wordInventory[material.name]}개)`
                             );
-
+                            playSFX(this, 'sfx_get_item', 0.25);
                             material.destroy();
                         }
                     }
@@ -1460,44 +1469,12 @@ export default class NorthForestScene extends Phaser.Scene {
         ) {
             return;
         }
-
-        // ==========================================
-        // TODO: 추후 실제 AI 부품 이미지로 교체
-        // ==========================================
-        if (!this.textures.exists('item_ai_core_temp')) {
-            const g = this.make.graphics({ x: 0, y: 0, add: false });
-
-            g.fillStyle(0x263238, 1);
-            g.fillRoundedRect(4, 8, 40, 32, 5);
-
-            g.fillStyle(0x00ffcc, 1);
-            g.fillCircle(24, 24, 9);
-
-            g.fillStyle(0xffffff, 1);
-            g.fillCircle(21, 21, 3);
-
-            g.fillStyle(0x78909c, 1);
-            g.fillRect(0, 17, 7, 14);
-            g.fillRect(41, 17, 7, 14);
-
-            g.generateTexture('item_ai_core_temp', 48, 48);
-            g.destroy();
-        }
-
-        // ==========================================
-        // NorthForest 북쪽
-        //
-        // TODO: 실제 맵 크기에 맞춰 x 좌표만 조정
-        // y는 북쪽이므로 작은 값
-        // ==========================================
         const bg = this.children.getByName?.('background');
-
         const worldWidth = this.physics.world.bounds.width;
-
         this.lostAiPart = this.physics.add.sprite(
             worldWidth / 2,
             90,
-            'item_ai_core_temp'
+            'power'
         );
 
         this.lostAiPart.setScale(0.9);

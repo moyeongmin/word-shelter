@@ -2,99 +2,280 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>1.1.1% - MVP</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>사이버 연금술사 - 숲속의 AI 코어</title>
+    <link rel="stylesheet" href="./src/ui/style.css">
 </head>
 <body>
     <div id="app-container">
-        
         <div id="game-container"></div>
-        <div id="hud-container">
-            <button id="open-upgrade-btn" class="hud-btn" style="background: linear-gradient(135deg, #ff9900, #ff3300); border:none;">✨ 진화</button>
-            <button id="hamburger-btn" class="hamburger-btn">☰</button>
-        </div>
 
         <div id="ui-container">
-            <div id="start-screen">
-                <div class="title-container">
-                    <h1 class="main-title">1.1.1%</h1>
-                    <p class="sub-title">세상에 단 하나뿐인 당신의 안식처</p>
-                </div>
-                <button id="game-start-btn" class="start-btn">세계의 조각 모으기</button>
+            <div id="quest-hud-box" class="quest-hud hidden">
+                <div class="quest-hud-type">📜 주요 퀘스트</div>
+                <div id="quest-hud-title" class="quest-hud-title">잃어버린 AI 부품</div>
+                <div id="quest-hud-desc" class="quest-hud-description">북쪽 숲(North Forest)에서 AI 코어의 부품을 탐색하여 회수하세요.</div>
             </div>
+
+            <div id="main-menu-screen" class="main-menu-screen">
+                <div class="main-menu-frame">
+                    <div class="main-menu-system-text">MY SHELTER // HOME SYSTEM</div>
+                    <h1 class="main-menu-title">나의 안식처</h1>
+                    <div class="main-menu-divider"></div>
+
+                    <div class="main-menu-buttons">
+                        <button id="game-start-btn" class="main-menu-btn primary">
+                            <span class="main-menu-btn-icon">▶</span>
+                            <span class="main-menu-btn-label">게임 시작</span>
+                            <span class="main-menu-btn-arrow">›</span>
+                        </button>
+
+                        <button id="gallery-btn" class="main-menu-btn">
+                            <span class="main-menu-btn-icon">▦</span>
+                            <span class="main-menu-btn-label">갤러리</span>
+                            <span class="main-menu-btn-arrow">›</span>
+                        </button>
+                    </div>
+                </div>
+                <button id="reset-storage-btn" class="main-menu-reset-btn">데이터 초기화</button>
+            </div>
+            <!-- 커스텀 Confirm 모달 -->
+            <div id="custom-confirm-modal" class="custom-confirm-modal hidden">
+                <div class="custom-confirm-panel">
+                    <h3 class="custom-confirm-title">
+                        <span>⚠️</span> 데이터 초기화 경고
+                    </h3>
+                    <p class="custom-confirm-text" id="custom-confirm-text">
+                        <!-- 텍스트 동적 삽입 -->
+                    </p>
+                    <div class="custom-confirm-buttons">
+                        <button id="custom-confirm-cancel" class="custom-confirm-btn-cancel">취소</button>
+                        <button id="custom-confirm-ok" class="custom-confirm-btn-ok">초기화</button>
+                    </div>
+                </div>
+            </div>
+            <div id="gallery-screen" class="gallery-screen hidden">
+                <div class="gallery-container">
+                    <header class="gallery-header">
+                        <div>
+                            <div class="gallery-system-text">MY SHELTER // SHELTER ARCHIVE</div>
+                            <h1 class="gallery-title">갤러리</h1>
+                        </div>
+
+                        <div class="gallery-header-actions">
+                            <select id="gallery-sort" class="gallery-sort">
+                                <option value="latest">최신순</option>
+                                <option value="likes">좋아요순</option>
+                            </select>
+
+                            <button id="gallery-back-btn" class="gallery-back-btn">← 돌아가기</button>
+                        </div>
+                    </header>
+
+                    <div class="gallery-divider"></div>
+
+                    <div id="gallery-list" class="gallery-list">
+                        <div class="gallery-loading"> 기록을 불러오는 중...</div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="gallery-detail-modal" class="gallery-detail-modal hidden">
+                <div class="gallery-detail-panel">
+                    <button id="gallery-detail-close" class="gallery-detail-close">✕</button>
+
+                    <div class="gallery-detail-layout">
+                        <div class="gallery-detail-image-area">
+                            <img id="gallery-detail-image" class="gallery-detail-image" src="" alt="안식처 이미지">
+                        </div>
+
+                        <div class="gallery-detail-info">
+                            <div id="gallery-detail-number" class="gallery-detail-number">ENDING #0</div>
+                            <div id="gallery-detail-owner" class="gallery-detail-owner">WS</div>
+
+                            <div class="gallery-detail-section-title">SHELTER STORY</div>
+                            <div id="gallery-detail-story" class="gallery-detail-story"></div>
+
+                            <div class="gallery-detail-section-title">MATERIALS</div>
+                            <div id="gallery-detail-materials" class="gallery-detail-materials"></div>
+
+                            <div class="gallery-detail-footer">
+                                <button id="gallery-detail-like" class="gallery-detail-like">♥ 좋아요 <span id="gallery-detail-like-count">0</span></button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             
+
+            <div id="start-screen"></div>
+            
+            <div id="hud-container">
+                <button id="open-upgrade-btn" class="hud-btn" title="진화/업그레이드">⚡ 진화</button>
+                <button id="hamburger-btn" class="hamburger-btn" title="시스템 메뉴">≡</button>
+            </div>
+
             <div id="system-menu-modal" class="hidden">
                 <div class="modal-header">
                     <h2>⚙️ 시스템 메뉴</h2>
                     <button id="close-system-btn" class="icon-close-btn">✕</button>
                 </div>
                 <div class="menu-btn-group">
-                    <button id="open-dict-btn" class="sys-menu-btn">📖 창조의 도감</button>
-                    <button class="sys-menu-btn">⚙️ 환경 설정</button>
-                </div>
-            </div>
-
-            <div id="upgrade-modal" class="hidden">
-                <div class="modal-header">
-                    <h2>✨ 연금술 진화</h2>
-                    <button id="close-upgrade-btn" class="icon-close-btn">✕</button>
-                </div>
-                <div class="upgrade-stats">
-                    보유 포인트: <span id="available-points" style="color:#ffcc00; font-size:1.5rem;">0</span> PT
-                </div>
-                <p style="color:#aaa; font-size:0.85rem; margin-bottom:20px;">새로운 지식(도감)을 발견할 때마다 1PT를 획득합니다.</p>
-                
-                <div class="upgrade-list">
-                    <div class="upg-row"><div class="upg-info"><span>👟 이동 속도</span><small>필요 1PT</small></div><div class="upg-controls"><button class="upg-btn minus" data-type="speed">-</button><span id="upg-lv-speed">Lv.0</span><button class="upg-btn plus" data-type="speed">+</button></div></div>
-                    <div class="upg-row"><div class="upg-info"><span>⏱️ 복제 속도 (기본 15초)</span><small>초당 -1초 (필요 1PT)</small></div><div class="upg-controls"><button class="upg-btn minus" data-type="time">-</button><span id="upg-lv-time">Lv.0</span><button class="upg-btn plus" data-type="time">+</button></div></div>
-                    <div class="upg-row"><div class="upg-info"><span>📦 복제 산출량</span><small>+1개 (필요 5PT)</small></div><div class="upg-controls"><button class="upg-btn minus" data-type="yield">-</button><span id="upg-lv-yield">Lv.0</span><button class="upg-btn plus" data-type="yield">+</button></div></div>
-                    <div class="upg-row special-upg" id="upg-slot2-container"><div class="upg-info"><span style="color:#ff3366">🧪 듀얼 복제기 개방</span><small id="upg-slot2-req">요구: 도감 30종 (필요 10PT)</small></div><div class="upg-controls"><button class="upg-btn minus" data-type="slot2">-</button><span id="upg-lv-slot2">잠김</span><button class="upg-btn plus" data-type="slot2">+</button></div></div>
+                    <button id="open-dict-btn" class="sys-menu-btn">📖 도감 보기</button>
+                    <button id="go-main-menu-btn" class="sys-menu-btn">🏠 메인 메뉴로</button>
                 </div>
             </div>
 
             <div id="dictionary-modal" class="hidden">
                 <div class="modal-header">
-                    <h2>📖 창조의 도감</h2>
+                    <h2>📖 연금술 데이터베이스</h2>
                     <button id="close-dict-btn" class="icon-close-btn">✕</button>
                 </div>
+                
                 <div id="dict-list-view">
-                    <div class="dict-stats"><span id="collection-count">발견한 재료: 0종</span></div>
-                    
+                    <div class="dict-stats" id="collection-count">발견한 재료: 0종</div>
                     <div class="filter-controls">
-                        <input type="text" id="dict-search" placeholder="재료 검색..." class="search-input">
+                        <input type="text" id="dict-search" class="search-input" placeholder="재료 검색...">
                         <select id="dict-sort" class="sort-select">
-                            <option value="recent">얻은 순 (최신)</option>
-                            <option value="oldest">얻은 순 (과거)</option>
-                            <option value="alpha">가나다 순</option>
-                        </select>
-                        <select id="dict-attr-placeholder" class="sort-select disabled" disabled title="LLM 속성 연동 시 해금됩니다">
-                            <option>속성별 (준비 중)</option>
+                            <option value="recent">최신순</option>
+                            <option value="alpha">가나다순</option>
                         </select>
                     </div>
-
                     <div id="collection-list" class="collection-list"></div>
                 </div>
+
                 <div id="dict-detail-view" class="hidden">
-                    <div class="detail-header"><button id="dict-back-btn" class="back-btn">◀ 목록으로</button><h3 id="dict-detail-title">이름</h3></div>
-                    <div class="recipe-section"><span class="section-label">SYNTHESIS RECIPES</span><div id="dict-recipe-list" class="recipe-list"></div></div>
+                    <button id="dict-back-btn" style="margin-bottom: 10px;">◀ 목록으로</button>
+                    <h3 id="dict-detail-title">재료 이름</h3>
+                    <div class="section-label">확인된 조합 레시피:</div>
+                    <div id="dict-recipe-list"></div>
+                </div>
+            </div>
+
+            <div id="upgrade-modal" class="hidden">
+                <div class="modal-header">
+                    <h2>⚡ 코어 성능 진화</h2>
+                    <button id="close-upgrade-btn" class="icon-close-btn">✕</button>
+                </div>
+                <div class="dict-stats">보유 진화 포인트: <span id="available-points" style="color:#00ffff;">0</span> PT</div>
+                
+                <div class="upg-row">
+                    <div class="upg-info">
+                        <span>이동 속도 증가</span><br>
+                        <small>주인공의 이동 속도를 향상시킵니다.</small>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <button class="upg-btn minus" data-type="speed">-</button>
+                        <span id="upg-lv-speed">Lv.0</span>
+                        <button class="upg-btn plus" data-type="speed">+</button>
+                    </div>
+                </div>
+
+                <div class="upg-row">
+                    <div class="upg-info">
+                        <span>복제 시간 단축</span><br>
+                        <small>슬롯 복제에 필요한 주기를 줄입니다.</small>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <button class="upg-btn minus" data-type="time">-</button>
+                        <span id="upg-lv-time">Lv.0</span>
+                        <button class="upg-btn plus" data-type="time">+</button>
+                    </div>
+                </div>
+
+                <div class="upg-row">
+                    <div class="upg-info">
+                        <span>복제 수량 증가</span><br>
+                        <small>한 번에 생산되는 재료 개수를 늘립니다.</small>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <button class="upg-btn minus" data-type="yield">-</button>
+                        <span id="upg-lv-yield">Lv.0</span>
+                        <button class="upg-btn plus" data-type="yield">+</button>
+                    </div>
+                </div>
+
+                <div class="upg-row">
+                    <div class="upg-info">
+                        <span>2번 슬롯 해방</span><br>
+                        <small id="upg-slot2-req">요구: 도감 30종 / 10 PT</small>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <button class="upg-btn minus" data-type="slot2">-</button>
+                        <span id="upg-lv-slot2">OFF</span>
+                        <button class="upg-btn plus" data-type="slot2">+</button>
+                    </div>
                 </div>
             </div>
 
             <div id="portal-confirm-modal" class="hidden">
-                <div class="section-box" style="text-align: center; width: 300px; background: rgba(20,20,20,0.95);">
-                  <h3 style="margin-top: 0; color: #646cff;">🌲 숲 탐험</h3>
-                  <p id="portal-modal-desc">숲으로 이동하시겠습니까?</p>
-                  <div style="display: flex; justify-content: space-around; margin-top: 20px;">
-                    <button id="portal-yes-btn" class="material-btn" style="background: #4CAF50; width: 100px;">예</button>
-                    <button id="portal-no-btn" class="material-btn" style="background: #d9534f; width: 100px;">아니오</button>
-                  </div>
+                <div class="modal-header">
+                    <h2>🗺️ 구역 이동</h2>
+                </div>
+                <div id="portal-modal-desc" style="text-align:center; margin-bottom:15px; font-size:1.1rem;">이동하시겠습니까?</div>
+                <div style="display: flex; gap: 16px; justify-content: center; width: 100%;">
+                    <button id="portal-yes-btn">예 (F)</button>
+                    <button id="portal-no-btn">아니오</button>
                 </div>
             </div>
-        </div>
+
+            <div id="clean-confirm-modal" class="hidden">
+                <div class="modal-header">
+                    <h2>🧹 작업대 청소</h2>
+                </div>
+                <div style="text-align:center; margin-bottom:20px; font-size:1.1rem; line-height: 1.5;">
+                    흙에 뒤덮인 장치가 있다.<br>청소해 볼까?
+                </div>
+                <div style="display: flex; gap: 16px; justify-content: center; width: 100%;">
+                    <button id="clean-yes-btn">확인 (F)</button>
+                    <button id="clean-no-btn">취소</button>
+                </div>
+            </div>
+
+            <div id="house-select-modal" class="hidden">
+                <div class="modal-header">
+                    <h2>🏠 건축 보금자리 재료 선정 (10가지)</h2>
+                    <button id="close-house-select-btn" class="icon-close-btn">✕</button>
+                </div>
+                <div class="house-modal-body">
+                    <div class="house-modal-left">
+                        <div class="section-label">📖 도감 수집 재료 (클릭하여 추가)</div>
+                        <div id="house-discovered-list" class="discovered-select-list"></div>
+                    </div>
+                    <div class="house-modal-right">
+                        <div class="section-label">🧱 선택된 건축 재료 (<span id="house-select-count">0</span>/10)</div>
+                        <div id="house-material-slots" class="house-material-slots"></div>
+                        <button id="submit-house-materials" class="house-submit-button" disabled>집 짓기 재료 제출</button>
+                    </div>
+                </div>
+            </div>
+    
+            <div id="cutscene-container" class="hidden">
+                <div id="cutscene-image"></div>
+                <div id="dialogue-box">
+                    <div id="speaker-name">???</div>
+                    <div id="dialogue-text">더러운 먼지더미에서 꺼내줘서 고맙다냥</div>
+                    <div class="dialogue-hint">클릭 또는 F를 눌러 다음으로 ▼</div>
+                </div>
+            </div>
+        </div> 
     </div>
 
-    <!-- 💡 #app-container 바깥쪽, body 바로 아래로 완전히 분리 -->
-            <div id="alchemy-desk-screen" class="hidden">
-        <!-- 상단 헤더 영역 (제목, 설명 좌측 / 종료 버튼 우측) -->
+    <div id="alchemy-desk-screen" class="hidden">
+        <div id="alchemy-loading-lock" class="hidden">
+            <div>원소 융합 연산 중...</div>
+        </div>
+
+        <div id="ai-interrupt-overlay" class="hidden">
+            <div class="ai-cat-big-portrait">
+                <img id="ai-interrupt-cat-img" src="assets/images/ai_cat_sit4.png" alt="AI 냥이 경고" style="width: 140px; height: 140px; object-fit: contain; image-rendering: pixelated;" />
+            </div>
+            <div class="ai-speech-bubble-big">
+                <span>⚡ 잠깐!!!!</span>
+            </div>
+        </div>
+
         <div class="desk-header-area">
             <div class="desk-header-left">
                 <h2>🧪 연금술 작업대</h2>
@@ -103,39 +284,55 @@
             <button id="close-desk-btn" class="icon-close-btn" style="background:#ff4757; color:white; width:auto; padding:6px 15px; border-radius:8px; border:none; cursor:pointer; font-weight:bold;">작업 종료 ✕</button>
         </div>
 
-        <!-- 메인 콘텐츠 그리드 영역 (중앙) -->
         <div class="desk-main-grid">
-            <!-- 1. 좌측 열: 복제기 영역 -->
             <div class="desk-left-col">
-                <span class="section-label" style="text-align: center; margin-bottom: 10px; color: #aaa; font-size: 0.8rem;">AUTO REPLICATORS</span>
-                
+                <span class="section-label" style="text-align: center; margin-bottom: 10px; color: #00ffff; font-size: 0.8rem;">AUTO REPLICATORS</span>
                 <div class="rep-slot-wrapper">
                     <div id="rep-drop-0" class="replicator-tube empty" data-slot="0"><span>복제기 1<br>[ DROP ]</span></div>
                     <div class="rep-bar-bg"><div id="rep-bar-0" class="rep-bar-fill"></div></div>
-                    <button id="remove-rep-0" class="hidden">1번 회수</button>
+                    <button id="remove-rep-0" class="icon-close-btn hidden" style="width: 100%; height: 28px; font-size: 0.8rem; margin-top: 5px;">1번 회수</button>
                 </div>
-                
                 <div class="rep-slot-wrapper" style="margin-top:20px;">
                     <div id="rep-drop-1" class="replicator-tube locked" data-slot="1"><span>복제기 2<br>[ LOCKED ]</span></div>
                     <div class="rep-bar-bg"><div id="rep-bar-1" class="rep-bar-fill"></div></div>
-                    <button id="remove-rep-1" class="hidden">2번 회수</button>
+                    <button id="remove-rep-1" class="icon-close-btn hidden" style="width: 100%; height: 28px; font-size: 0.8rem; margin-top: 5px;">2번 회수</button>
                 </div>
             </div>
 
-            <!-- 2. 우측/중앙 상단 열: 검색 및 인벤토리 필드 -->
             <div class="desk-upper-right-col">
                 <div class="filter-controls pouch-filters">
-                    <input type="text" id="pouch-search" placeholder="검색............" class="search-input">
+                    <input type="text" id="pouch-search" placeholder="보유 원소 검색..." class="search-input">
                     <select id="pouch-sort" class="sort-select">
-                        <option value="recent">최근순 ▼</option>
-                        <option value="alpha">가나다 순</option>
+                        <option value="recent">최신순 ▼</option>
+                        <option value="alpha">가나다순</option>
                     </select>
                 </div>
                 <div id="magic-pouch" class="full-pouch-container"></div>
             </div>
         </div>
+
+        <div class="alchemy-bottom-area">
+            <div class="alchemy-ai-profile">
+                <div class="alchemy-ai-image">
+                    <img id="ai-cat-face-img" src="assets/images/ai_cat_stand1.png" alt="AI 냥이" style="width: 70px; height: 70px; object-fit: contain; image-rendering: pixelated;" />
+                </div>
+                <div class="alchemy-ai-name">연금술 냥이</div>
+            </div>
+
+            <div class="alchemy-dialogue-box">
+                <div class="alchemy-dialogue-speaker">시스템 대화</div>
+                <div id="alchemy-ai-dialogue">재료를 조합하여 새로운 보금자리를 만들어보자냥!</div>
+                <button id="alchemy-ai-action" class="hidden">대기 중...</button>
+            </div>
+
+            <div class="house-submit-area">
+                <div class="house-submit-title">🏡 나만의 집 짓기 건축</div>
+                <div id="house-material-count" class="house-material-count">0 / 10 MATERIALS</div>
+                <button id="open-house-select-btn" class="house-submit-button" style="margin-top: 10px;">📐 재료 10가지 선택하기</button>
+            </div>
+        </div>
     </div>
 
-    <script type="module" src="/src/main.js"></script>
+    <script type="module" src="./src/main.js"></script>
 </body>
 </html>
