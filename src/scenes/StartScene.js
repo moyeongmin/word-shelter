@@ -16,6 +16,11 @@ export default class StartScene extends Phaser.Scene {
     create() {
         const { width, height } = this.cameras.main;
 
+        document.getElementById('main-menu-screen')?.classList.add('hidden');
+        document.getElementById('hud-container')?.classList.add('hidden');
+        document.getElementById('quest-hud-box')?.classList.add('hidden');
+
+
         // 📜 수정된 대사 스크립트 (고양이 등장 X, 방황하는 스토리)
         this.scripts = [
             { bg: 'cutscene1', speaker: '어머니', text: "너 도대체 언제까지 방구석에서 빈둥거릴 거니?! 당장 나가!!", color: '#ff0055' },
