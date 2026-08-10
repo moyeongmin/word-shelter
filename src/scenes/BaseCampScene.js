@@ -86,7 +86,7 @@ export default class BaseCampScene extends Phaser.Scene {
         } else if (!this.registry.get('isInitialized')) {
             console.log("🆕 세이브 파일 없음. 새 게임을 시작합니다.");
             this.registry.set('wordInventory', {});
-            this.registry.set('discoveredWords', ['불', '물', '나무', '돌', '흙']);
+            this.registry.set('discoveredWords', []);
             this.registry.set('discoveredRecipes', {});
             this.registry.set('replicators', [{ item: null, lastTick: 0 }, { item: null, lastTick: 0 }]);
             this.registry.set('upgrades', { speed: 0, time: 0, yield: 0, slot2: false });
@@ -265,7 +265,7 @@ export default class BaseCampScene extends Phaser.Scene {
         this.cameras.main.startFollow(this.player, true, 0.08, 0.08);
 
         createPlayerAnims(this);
-        this.keys = this.input.keyboard.addKeys('W,A,S,D,F,ESC,T');
+        this.keys = this.input.keyboard.addKeys('W,A,S,D,F,ESC');
 
         // DOM 바인딩
         this.sysMenuModal = document.getElementById('system-menu-modal'); 
@@ -491,22 +491,6 @@ export default class BaseCampScene extends Phaser.Scene {
         }
     }
 
-    fillTestMaterialsForHouse() {
-        if (this.houseMaterialSubmission && typeof this.houseMaterialSubmission.fillTestMaterials === 'function') {
-            this.houseMaterialSubmission.fillTestMaterials();
-        } else {
-            const testItems = ['서버 랙', '거북선', '해먹', '독 함정 바닥', '미니 냉장고', '폼롤러', '낙엽', '고양이', '마법사 지팡이', '손흥민' ];
-            testItems.forEach(item => {
-                this.wordInventory[item] = (this.wordInventory[item] || 0) + 10;
-                this.addDiscoveredWord(item);
-            });
-            this.syncRegistryReferences();
-            if (this.deskScreen && !this.deskScreen.classList.contains('hidden')) {
-                this.renderAlchemyPouch();
-            }
-        }
-    }
-
     spawnMaterialAround(x, y, minRadius, maxRadius, itemName, textureKey, maxLimit, angleMin = 0, angleMax = Math.PI * 2) {
         if (this.materials.getChildren().filter(m => m.name === itemName).length >= maxLimit) return;
         let spawnX, spawnY; let isValid = false; let attempts = 0;
@@ -596,8 +580,6 @@ export default class BaseCampScene extends Phaser.Scene {
         this.updateInteractableOutlines();
         this.updateReplicatorsTick();
         this.alchemy?.update();
-
-        if (Phaser.Input.Keyboard.JustDown(this.keys.T)) this.fillTestMaterialsForHouse();
 
         if (!this.deskScreen.classList.contains('hidden') || !this.sysMenuModal.classList.contains('hidden') || !this.dictModal.classList.contains('hidden') || !this.upgradeModal.classList.contains('hidden') || (this.portalModal && !this.portalModal.classList.contains('hidden'))) { 
             this.player.body.setVelocity(0, 0); return; 
