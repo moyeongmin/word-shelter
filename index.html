@@ -39,6 +39,21 @@
                 </div>
                 <button id="reset-storage-btn" class="main-menu-reset-btn">데이터 초기화</button>
             </div>
+            <!-- 커스텀 Confirm 모달 -->
+            <div id="custom-confirm-modal" class="custom-confirm-modal hidden">
+                <div class="custom-confirm-panel">
+                    <h3 class="custom-confirm-title">
+                        <span>⚠️</span> 데이터 초기화 경고
+                    </h3>
+                    <p class="custom-confirm-text" id="custom-confirm-text">
+                        <!-- 텍스트 동적 삽입 -->
+                    </p>
+                    <div class="custom-confirm-buttons">
+                        <button id="custom-confirm-cancel" class="custom-confirm-btn-cancel">취소</button>
+                        <button id="custom-confirm-ok" class="custom-confirm-btn-ok">초기화</button>
+                    </div>
+                </div>
+            </div>
             <div id="gallery-screen" class="gallery-screen hidden">
                 <div class="gallery-container">
                     <header class="gallery-header">
@@ -108,6 +123,7 @@
                 </div>
                 <div class="menu-btn-group">
                     <button id="open-dict-btn" class="sys-menu-btn">📖 도감 보기</button>
+                    <button id="go-main-menu-btn" class="sys-menu-btn">🏠 메인 메뉴로</button>
                 </div>
             </div>
 

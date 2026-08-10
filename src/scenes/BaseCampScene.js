@@ -358,6 +358,26 @@ export default class BaseCampScene extends Phaser.Scene {
             this.input.keyboard.enabled = true; 
         };
 
+        const goMainMenuBtn = document.getElementById('go-main-menu-btn');
+        if (goMainMenuBtn) {
+        goMainMenuBtn.onclick = () => {
+                const confirmed = window.confirm(
+                    '메인 메뉴로 이동하시겠습니까?\n현재 진행 상황은 저장됩니다.'
+                );
+
+                if (!confirmed) return;
+
+                if (typeof this.saveGame === 'function') {
+                    this.saveGame();
+                }
+                document.getElementById('system-menu-modal')?.classList.add('hidden');
+
+                document.getElementById('hud-container')?.classList.add('hidden');
+
+                this.scene.start('MainMenuScene');
+            };
+        }
+
         document.querySelectorAll('.upg-btn').forEach((btn) => {
             btn.onclick = (e) => {
                 e.stopPropagation();
@@ -392,6 +412,21 @@ export default class BaseCampScene extends Phaser.Scene {
         if (pouchSearch) pouchSearch.addEventListener('input', () => this.renderAlchemyPouch());
         const pouchSort = document.getElementById('pouch-sort');
         if (pouchSort) pouchSort.addEventListener('change', () => this.renderAlchemyPouch());
+
+
+        this.isWorkbenchCleaned = this.registry.get('isWorkbenchCleaned') || false;
+        if (this.isWorkbenchCleaned) {
+            this.workbenchImg.setTexture('obj_table_clean');
+            if (this.hudContainer) {
+                this.hudContainer.classList.remove('hidden');
+            }
+            this.input.keyboard.enabled = true;
+            if (this.game && this.game.canvas) {
+                this.game.canvas.focus(); 
+            }
+        }
+
+        
     }
 
     // ==========================================
