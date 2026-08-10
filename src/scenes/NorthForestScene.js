@@ -5,6 +5,10 @@ import woodImg from '/assets/images/wood.png';
 import sandImg from '/assets/images/sand.png';
 import windImg from '/assets/images/wind.png';
 
+import { preloadPlayerAssets, createPlayerAnims, updatePlayerMovement } from '../features/player/playerUtils';
+import { preloadSounds, playBGM } from '../features/sound/soundUtils';
+import { playSFX } from '../features/sound/soundUtils';
+
 export default class NorthForestScene extends Phaser.Scene {
     constructor() {
         // 중요: BaseCampScene에서 이 이름으로 찾아감
@@ -72,6 +76,9 @@ export default class NorthForestScene extends Phaser.Scene {
                 'assets/images/player.png'
             );
         }
+
+        preloadPlayerAssets(this);
+        preloadSounds(this);
     }
 
     // ==========================================
@@ -96,6 +103,8 @@ export default class NorthForestScene extends Phaser.Scene {
     }
 
     create() {
+        playBGM(this, 'bgm_travel', 0.4);
+
         // ==========================================
         // 1. 배경 / 월드
         // ==========================================
@@ -234,7 +243,7 @@ export default class NorthForestScene extends Phaser.Scene {
             );
 
         // CaveScene과 비슷한 크기
-        this.player.setScale(0.15);
+        this.player.setScale(0.09);
 
         this.player.body
             .setCollideWorldBounds(true);
@@ -244,26 +253,17 @@ export default class NorthForestScene extends Phaser.Scene {
         // BaseCamp / Cave와 동일
         // ==========================================
 
-        const hitBoxWidth =
-            this.player.width * 0.25;
+        const hitBoxWidth = 140;  // 발 폭 넓이
+        const hitBoxHeight = 70;  // 발 높이 두께
+        this.player.body.setSize(hitBoxWidth, hitBoxHeight); 
 
-        const hitBoxHeight = 30;
-
-        this.player.body.setSize(
-            hitBoxWidth,
-            hitBoxHeight
-        );
-
-        const offsetX =
-            this.player.width * 0.38;
-
-        const offsetY =
-            this.player.height - 110;
-
-        this.player.body.setOffset(
-            offsetX,
-            offsetY
-        );
+        // X축 오프셋: (원본너비 375 - 박스너비 140) / 2 = 117.5 (정중앙 정렬)
+        const offsetX = (375 - hitBoxWidth) / 2; 
+        
+        // Y축 오프셋: (원본높이 666 - 박스높이 70) - 여유 공간 = 맨 아래 발바닥 위치
+        const offsetY = 666 - hitBoxHeight - 15; 
+        
+        this.player.body.setOffset(offsetX, offsetY);
 
         // ==========================================
         // 7. 장애물 충돌
@@ -284,6 +284,8 @@ export default class NorthForestScene extends Phaser.Scene {
             0.08,
             0.08
         );
+
+        createPlayerAnims(this); // player 애니메이션 생성
 
         // ==========================================
         // 9. 키 입력
@@ -1267,6 +1269,8 @@ export default class NorthForestScene extends Phaser.Scene {
 
         this.updateInteractableOutlines();
 
+        updatePlayerMovement(this.player, this.keys, this.playerSpeed); // playerMovement.js의 updatePlayerMovement 함수 호출
+
         // ==========================================
         // 플레이어 이동
         // ==========================================
@@ -1415,7 +1419,7 @@ export default class NorthForestScene extends Phaser.Scene {
                                 `✨ [${material.name}] 획득! ` +
                                 `(보유량: ${this.wordInventory[material.name]}개)`
                             );
-
+                            playSFX(this, 'sfx_get_item', 0.25);
                             material.destroy();
                         }
                     }

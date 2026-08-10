@@ -1,4 +1,7 @@
 import Phaser from 'phaser';
+import { preloadPlayerAssets, createPlayerAnims, updatePlayerMovement } from '../features/player/playerUtils';
+import { preloadSounds, playBGM } from '../features/sound/soundUtils';
+import { playSFX } from '../features/sound/soundUtils';
 
 export default class CaveScene extends Phaser.Scene {
     constructor() {
@@ -12,6 +15,9 @@ export default class CaveScene extends Phaser.Scene {
         this.load.image('item_iron', 'assets/images/item_iron.png');
         this.load.image('item_stone', 'assets/images/item_stone.png');
         this.load.image('item_earth', 'assets/images/item_earth.png');
+
+        preloadPlayerAssets(this);
+        preloadSounds(this);
     }
 
     init(data) {
@@ -26,6 +32,8 @@ export default class CaveScene extends Phaser.Scene {
     get playerSpeed() { return 120 + (this.upgrades.speed * 9); }
 
     create() {
+        playBGM(this, 'bgm_travel', 0.4);
+
         // 1. 배경 및 맵 설정
         const bg = this.add.image(0, 0, 'bg_cave').setOrigin(0, 0);
         this.physics.world.setBounds(0, 0, bg.width, bg.height);
@@ -65,33 +73,43 @@ export default class CaveScene extends Phaser.Scene {
             this.obstacles.add(wall);
         });
 
-
-        // 4. 플레이어 스폰
+        // 3. 플레이어 스폰 위치 결정
         let startX = 100;
         let startY = 100; 
 
         if (this.spawnFrom === 'Camp2Cave') {
-            startX = 80; // 포탈 근처로 시작 위치 살짝 조정
+            startX = 80; 
             startY = 80;
         }
 
-        this.player = this.physics.add.sprite(startX, startY, 'player_asset');
-        this.player.setScale(0.13); 
+        // 🌟 1. 생성할 때 기본 이미지를 char_walk_front1로 지정
+        this.player = this.physics.add.sprite(startX, startY, 'char_walk_front1');
+        
+        // 🌟 2. 스케일을 0.25로 통일 (너무 작으면 0.2 ~ 0.3 사이 조절)
+        this.player.setScale(0.08); 
         this.player.body.setCollideWorldBounds(true);
 
-        // 🌟 발밑으로 충돌 범위(Hitbox) 축소 (다른 맵들과 완벽히 동일한 수치)
-        const hitBoxWidth = this.player.width * 0.25;
-        const hitBoxHeight = 30; 
+        // ==========================================
+        // 🌟 3. 375x666 원본 해상도 기준 '정밀 발밑' 히트박스 세팅
+        // ==========================================
+        const hitBoxWidth = 140;  // 발 폭 넓이
+        const hitBoxHeight = 70;  // 발 높이 두께
         this.player.body.setSize(hitBoxWidth, hitBoxHeight); 
 
-        const offsetX = this.player.width * 0.38; 
-        const offsetY = this.player.height - 110;  
+        // X축 오프셋: (원본너비 375 - 박스너비 140) / 2 = 117.5 (좌우 정중앙)
+        const offsetX = (375 - hitBoxWidth) / 2; 
+        
+        // Y축 오프셋: 666(원본높이) - 70(박스높이) - 15(미세 여유공간) = 581 (발바닥 위치)
+        const offsetY = 666 - hitBoxHeight - 15; 
+        
         this.player.body.setOffset(offsetX, offsetY);
 
 
         // 5. 충돌 및 카메라 설정
         this.physics.add.collider(this.player, this.obstacles);
         this.cameras.main.startFollow(this.player, true, 0.08, 0.08);
+
+        createPlayerAnims(this);
 
         this.keys = this.input.keyboard.addKeys('W,A,S,D,F');
 
@@ -193,6 +211,9 @@ export default class CaveScene extends Phaser.Scene {
     }
 
     update() {
+
+        updatePlayerMovement(this.player, this.keys, this.playerSpeed);
+
         let vx = 0, vy = 0;
         if (this.keys.A.isDown) vx = -this.playerSpeed; else if (this.keys.D.isDown) vx = this.playerSpeed;
         if (this.keys.W.isDown) vy = -this.playerSpeed; else if (this.keys.S.isDown) vy = this.playerSpeed;
@@ -223,7 +244,7 @@ export default class CaveScene extends Phaser.Scene {
                     if (typeof this.saveGameData === 'function') {
                         this.saveGameData();
                     }
-
+                    playSFX(this, 'sfx_get_item', 0.25);
                     mat.destroy();
                 }
             });
@@ -282,13 +303,14 @@ export default class CaveScene extends Phaser.Scene {
 
         const item = this.physics.add.sprite(spawnX, spawnY, textureKey);
         item.name = itemName;
-        item.setScale(0); 
+        item.setScale(0); // 0에서 시작해서 팡 커지게 설정
 
-        // 단축 속성(scale) 대신 scaleX, scaleY를 명시적으로 분리해서 확실하게 쪼그라들게 적용!
+        // 🌟 32x32 아이콘이 큼직하게 보이도록 scale을 1.5 ~ 2로 설정합니다.
+        const finalScale = 0.7; // 원하시는 크기에 따라 1.5 ~ 2.2 사이로 조절 가능합니다!
+
         this.tweens.add({ 
             targets: item, 
-            scaleX: targetScale, 
-            scaleY: targetScale, 
+            scale: finalScale, // 단축 속성 하나로 통일하여 확실하게 키움!
             duration: 400, 
             ease: 'Back.easeOut',
             onComplete: () => {

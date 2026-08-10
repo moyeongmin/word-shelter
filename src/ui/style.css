@@ -673,3 +673,76 @@ button:active { transform: scale(0.95); }
 .custom-confirm-btn-cancel:hover { border-color:#00ffff; color:#00ffff; background:#07303a; }
 .custom-confirm-btn-ok { padding:10px 18px; border:1px solid #ff2468; background:#29101c; color:#ff4580; font-family:inherit; font-size:0.9rem; cursor:pointer; transition:0.15s ease; }
 .custom-confirm-btn-ok:hover { background:#ff2468; color:#ffffff; box-shadow:0 0 15px rgba(255,36,104,0.4); }
+/* ==========================================================================
+   🌟 연금술 작업대 아이템 (이미지 + 텍스트) 스타일
+   ========================================================================== */
+   .material-icon {
+    width: 42px;
+    height: 42px;
+    object-fit: contain;
+    pointer-events: none; 
+    user-select: none;
+    filter: drop-shadow(0 0 5px rgba(0, 255, 255, 0.8));
+}
+
+/* 주머니 속 버블 (위: 이미지, 중간: 이름, 아래: 개수) */
+.word-bubble.has-image {
+    display: inline-flex !important;
+    flex-direction: column !important; /* 위아래 세로 배치 */
+    align-items: center;
+    justify-content: center;
+    padding: 8px 12px !important;
+    gap: 2px; /* 간격 축소 */
+    background-color: rgba(16, 28, 58, 0.9);
+    border-radius: 12px;
+    text-align: center;
+    min-width: 60px;
+}
+
+/* 복제기 슬롯 안의 이미지 */
+.rep-icon {
+    width: 40px;
+    height: 40px;
+    object-fit: contain;
+    pointer-events: none;
+    filter: drop-shadow(0 0 8px #ff007f);
+    animation: pop-bounce 0.3s ease-out;
+}
+
+/* 복제기 활성화 시 레이아웃 (위: 이미지, 아래: 이름) */
+.replicator-tube.active {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+}
+
+/* ==========================================================================
+   🌟 연금술 작업대 (마법 주머니) 무한 캔버스 & 드래그 이동 스타일
+   ========================================================================== */
+   #magic-pouch {
+    overflow: auto !important; /* 내부 공간이 넘치면 스크롤 허용 */
+    cursor: grab;
+    position: relative; 
+    /* 스크롤바 숨김 처리 */
+    -ms-overflow-style: none;  /* IE, Edge */
+    scrollbar-width: none;  /* Firefox */
+}
+
+#magic-pouch::-webkit-scrollbar {
+    display: none; /* Chrome, Safari 스크롤바 숨김 */
+}
+
+#magic-pouch.panning {
+    cursor: grabbing; /* 드래그 중일 때 커서 모양 변경 */
+}
+
+/* 🌟 내부 공간을 강제로 3000x3000px로 확장하는 가상 요소 */
+#magic-pouch::after {
+    content: '';
+    display: block;
+    width: 3000px;
+    height: 3000px;
+    pointer-events: none;
+}
